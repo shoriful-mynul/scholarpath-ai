@@ -1,0 +1,46 @@
+{
+  "rawOpportunityText": "FELLOWSHIP: DeepMind AI Fellowship 2027\nORGANIZATION: DeepMind Research\nDEADLINE: April 30, 2027\nELIGIBILITY:\n- Minimum GPA of 3.50\n- Must be enrolled in a Computer Science or AI undergraduate or graduate degree program\n- Eligible Countries: Open globally\n- Required Documents: Academic Transcript, 2 Letters of Recommendation, CV, Research Statement\n- Expected completion of degree: 2027 or 2028",
+  "studentProfile": {
+    "name": "Amina Rahman",
+    "country": "Bangladesh",
+    "nationality": "Bangladesh",
+    "currentDegree": "Bachelor of Science",
+    "fieldOfStudy": "Computer Science & Engineering",
+    "university": "BUET",
+    "gpa": 3.75,
+    "maxGpa": 4.0,
+    "expectedGraduationYear": 2027,
+    "technicalSkills": ["Machine Learning", "Distributed Systems", "Data Structures"],
+    "programmingLanguages": ["Python", "C++", "TypeScript"],
+    "aiMlSkills": ["PyTorch", "Transformers", "Computer Vision"],
+    "projects": [
+      {
+        "title": "Medical Imaging Transformer",
+        "techStack": ["PyTorch", "Python", "Vision Transformer"],
+        "description": "Implemented attention-based segmentation for chest X-ray scans achieving 94% dice score."
+      }
+    ],
+    "internships": [
+      {
+        "role": "AI Research Intern",
+        "organization": "DataSoft Systems",
+        "duration": "June 2025 - August 2025",
+        "description": "Fine-tuned multilingual language models for low-resource NLP."
+      }
+    ],
+    "researchExperience": [
+      {
+        "title": "Robust Representation Learning",
+        "labOrMentor": "Prof. S. Huq, Machine Intelligence Lab",
+        "description": "Investigated self-supervised representations under distribution shifts."
+      }
+    ],
+    "certificationsAwards": [
+      {
+        "name": "Dean's Honor List",
+        "issuer": "BUET",
+        "year": "2024"
+      }
+    ]
+  }
+}

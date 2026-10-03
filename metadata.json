@@ -1,0 +1,6 @@
+{
+  "name": "ScholarPath AI",
+  "description": "Agentic AI-powered educational opportunity evaluator that verifies eligibility, analyzes background compatibility, and generates prioritized application action plans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
