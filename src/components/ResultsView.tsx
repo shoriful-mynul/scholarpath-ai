@@ -168,7 +168,7 @@ ${activePlan.profileHighlights.map(h => `* ${h.item}: ${h.reason}`).join('\n')}
 
 ## 6. Adversarial Verification Audit (Agent 5: Verification Agent)
 - Audit Status: ${activeVerification.auditStatus}
-- Confidence Score: ${activeVerification.confidenceScore}%
+- Audit Confidence Score: ${activeVerification.confidenceScore}% (Internal AI audit integrity indicator — not an acceptance prediction)
 - Summary: ${activeVerification.auditSummary}
 ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerification.flags.map(f => `* [${f.category} - ${f.severity}] Claim by ${f.claimedBy}: "${f.claim}" -> Correction: ${f.correction}`).join('\n') : '* No hallucinations, contradictions, or unsupported claims detected.'}
 `;
@@ -192,7 +192,14 @@ ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerifi
             <span aria-hidden="true">·</span>
             <span>Candidate: <strong className="text-slate-900 font-semibold">{studentName}</strong></span>
             <span aria-hidden="true">·</span>
-            <span className="text-indigo-600 font-medium">5-Stage Agent Pipeline Complete</span>
+            {currentAnalysis.aiAnalysisFailed ? (
+              <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-amber-600" />
+                Deterministic Mode (AI Analysis Incomplete)
+              </span>
+            ) : (
+              <span className="text-indigo-600 font-medium">5-Stage Agent Pipeline Complete</span>
+            )}
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{opportunityName}</h1>
         </div>
@@ -224,6 +231,21 @@ ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerifi
           </button>
         </div>
       </div>
+
+      {/* AI Analysis Failure Banner */}
+      {currentAnalysis.aiAnalysisFailed && (
+        <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-3 shadow-2xs">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-semibold block text-amber-950">
+              Notice: Live AI Analysis Could Not Be Completed
+            </span>
+            <p className="text-amber-800 leading-relaxed">
+              {currentAnalysis.aiFailureReason || 'The upstream Gemini AI service was unavailable or timed out.'} Deterministic eligibility criteria and rule-based checks were successfully evaluated. However, full AI agent synthesis was not completed, and the Verification Agent has flagged this evaluation as <strong className="font-mono text-amber-950">ACTION_NEEDED</strong>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 1: OPPORTUNITY OVERVIEW */}
       <section className="bg-white border border-slate-200/80 rounded-xl p-6 sm:p-8 shadow-xs space-y-6">
@@ -846,26 +868,31 @@ ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerifi
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`font-mono text-xs font-bold px-3 py-1 rounded-md uppercase border ${
-                activeVerification.auditStatus === 'VERIFIED_COMPLIANT'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                  : activeVerification.auditStatus === 'ACTION_NEEDED'
-                  ? 'bg-rose-50 text-rose-800 border-rose-300'
-                  : 'bg-amber-50 text-amber-800 border-amber-300'
-              }`}
-            >
-              Status: {activeVerification.auditStatus}
-            </span>
-            <span className="text-xs font-mono font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200">
-              Confidence: {activeVerification.confidenceScore}%
+          <div className="flex flex-col sm:items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              <span
+                className={`font-mono text-xs font-bold px-3 py-1 rounded-md uppercase border ${
+                  activeVerification.auditStatus === 'VERIFIED_COMPLIANT'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : activeVerification.auditStatus === 'ACTION_NEEDED'
+                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                    : 'bg-amber-50 text-amber-800 border-amber-300'
+                }`}
+              >
+                Status: {activeVerification.auditStatus}
+              </span>
+              <span className="text-xs font-mono font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200">
+                Audit Confidence: {activeVerification.confidenceScore}%
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-500 font-medium">
+              AI audit confidence — not an acceptance prediction
             </span>
           </div>
         </div>
 
         {/* Audit Assessment Summary */}
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5">
           <span className="font-semibold text-slate-800 block">Integrity Verdict</span>
           <p className="text-slate-600 leading-relaxed">{activeVerification.auditSummary}</p>
           {activeVerification.finalAssessment && (
@@ -873,6 +900,10 @@ ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerifi
               {activeVerification.finalAssessment}
             </p>
           )}
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-1">
+            <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Audit confidence reflects internal reasoning provenance and document grounding — not admission or funding odds.</span>
+          </div>
         </div>
 
         {/* Adversarial Flags */}

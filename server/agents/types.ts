@@ -122,6 +122,8 @@ export interface OpportunityAnalysis {
   } | null;
   allRequirements: ExtractedRequirement[];
   rawTextLength: number;
+  aiFailed?: boolean;
+  aiFailureReason?: string;
 }
 
 export type EligibilityStatus = 'MET' | 'NOT_MET' | 'NEEDS_VERIFICATION' | 'Met' | 'Not Met' | 'Needs Verification';
@@ -252,6 +254,8 @@ export interface ProfileMatchResult {
   relevantSkills: ProfileMatchRelevantSkill[];
   gaps: ProfileMatchGap[];
   summary: string;
+  aiFailed?: boolean;
+  aiFailureReason?: string;
 }
 
 export interface ApplicationPlanPriorityTask {
@@ -285,6 +289,8 @@ export interface ApplicationPlanResult {
   requirementsToVerify: ApplicationPlanRequirementToVerify[];
   deadline: string;
   deadlineNotes: string;
+  aiFailed?: boolean;
+  aiFailureReason?: string;
 }
 
 export interface VerificationFlag {
@@ -307,6 +313,8 @@ export interface VerificationResult {
   provenanceMap?: ProvenanceItem[];
   hallucinationAuditSummary?: string;
   finalStatement?: string;
+  aiFailed?: boolean;
+  aiFailureReason?: string;
 }
 
 export interface FullAnalysisResult {
@@ -322,4 +330,6 @@ export interface FullAnalysisResult {
   studentName: string;
   opportunityName: string;
   isDemoFallback?: boolean;
+  aiAnalysisFailed?: boolean;
+  aiFailureReason?: string;
 }

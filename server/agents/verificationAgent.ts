@@ -160,6 +160,29 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
     }
   }
 
+  // Detect if upstream AI analysis failed or timed out
+  const upstreamAiFailed = Boolean(
+    opportunityAnalysis.aiFailed ||
+    profileMatch.aiFailed ||
+    applicationPlan.aiFailed
+  );
+  const upstreamFailureReason =
+    opportunityAnalysis.aiFailureReason ||
+    profileMatch.aiFailureReason ||
+    applicationPlan.aiFailureReason ||
+    'Upstream Gemini request failed or was unavailable';
+
+  if (upstreamAiFailed) {
+    aiFlags.unshift({
+      category: 'UNSUPPORTED_CLAIM',
+      severity: 'HIGH',
+      claimedBy: 'OPPORTUNITY_ANALYZER',
+      claim: 'AI analysis completion',
+      explanation: `Upstream Gemini AI request failed, timed out, or returned an error: "${upstreamFailureReason}". Full AI-grounded multi-agent reasoning could not be completed.`,
+      correction: 'Rerun analysis with valid Gemini credentials or rely strictly on verified deterministic eligibility checks.'
+    });
+  }
+
   // Combine flags and deduplicate
   const allFlagsMap = new Map<string, VerificationFlag>();
   for (const flag of [...programmaticFlags, ...aiFlags]) {
@@ -174,25 +197,31 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
   const hasMedium = mergedFlags.some(f => f.severity === 'MEDIUM');
   const issuesFound = mergedFlags.length > 0;
 
-  const auditStatus = hasHigh
+  const auditStatus = upstreamAiFailed || hasHigh
     ? 'ACTION_NEEDED'
     : hasMedium || issuesFound
     ? 'PASSED_WITH_CAUTIONS'
     : 'VERIFIED_COMPLIANT';
 
-  let confidenceScore = 98;
-  for (const f of mergedFlags) {
-    if (f.severity === 'HIGH') confidenceScore -= 15;
-    else if (f.severity === 'MEDIUM') confidenceScore -= 7;
-    else confidenceScore -= 2;
+  let confidenceScore = upstreamAiFailed ? 42 : 98;
+  if (!upstreamAiFailed) {
+    for (const f of mergedFlags) {
+      if (f.severity === 'HIGH') confidenceScore -= 15;
+      else if (f.severity === 'MEDIUM') confidenceScore -= 7;
+      else confidenceScore -= 2;
+    }
+    confidenceScore = Math.max(55, Math.min(100, confidenceScore));
   }
-  confidenceScore = Math.max(55, Math.min(100, confidenceScore));
 
-  const auditSummary = issuesFound
+  const auditSummary = upstreamAiFailed
+    ? `Audit flagged critical failure: Upstream Gemini AI request failed (${upstreamFailureReason}). Full AI analysis could not be completed.`
+    : issuesFound
     ? `Adversarial audit identified ${mergedFlags.length} notice(s): ${mergedFlags.map(f => `[${f.category} (${f.severity})]: ${f.explanation}`).join(' ')}`
     : `All claims, requirements, and preparation tasks verified with 100% provenance against the student profile and source opportunity announcement.`;
 
-  const finalAssessment = auditStatus === 'VERIFIED_COMPLIANT'
+  const finalAssessment = upstreamAiFailed
+    ? 'Analysis could not be completed with AI verification. Deterministic rule checks may be inspected, but AI agent verification cannot mark this analysis as compliant.'
+    : auditStatus === 'VERIFIED_COMPLIANT'
     ? 'All evaluated claims are strictly grounded in source documentation with no detected hallucinations or logical contradictions.'
     : auditStatus === 'PASSED_WITH_CAUTIONS'
     ? 'Evaluation is structurally valid but candidate should review advisory cautions regarding documents and timeline assumptions.'

@@ -3,7 +3,8 @@ import { OpportunityAnalysis, ExtractedRequirement, OpportunityEvidenceItem } fr
 
 export async function runOpportunityAnalyzer(
   rawOpportunityText: string,
-  aiClient?: GoogleGenAI
+  aiClient?: GoogleGenAI,
+  options?: { allowFallback?: boolean }
 ): Promise<OpportunityAnalysis> {
   const trimmed = rawOpportunityText.trim();
   if (!trimmed) {
@@ -344,7 +345,15 @@ ${trimmed.slice(0, 25000)}
         rawTextLength: trimmed.length
       };
     } catch (err: any) {
-      console.warn('Gemini Opportunity Analyzer failed or encountered an error. Falling back to deterministic extractor:', err?.message || err);
+      console.warn('Gemini Opportunity Analyzer failed or encountered an error:', err?.message || err);
+      if (!options?.allowFallback) {
+        const detail = err?.message || 'Gemini API call failed';
+        throw new Error(`Analysis could not be completed: Gemini AI request failed (${detail}).`);
+      }
+      const fallbackResult = extractOpportunityDeterministically(trimmed);
+      fallbackResult.aiFailed = true;
+      fallbackResult.aiFailureReason = err?.message || 'Gemini API call failed';
+      return fallbackResult;
     }
   }
 

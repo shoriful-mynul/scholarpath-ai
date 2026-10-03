@@ -467,9 +467,36 @@ REQUIRED DOCUMENTS:
 
           {/* Error messages */}
           {(localError || error) && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{localError || error}</span>
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block text-rose-950">
+                    {error && error.includes('could not be completed')
+                      ? 'Analysis could not be completed'
+                      : 'Evaluation Notice'}
+                  </span>
+                  <p className="text-rose-800 mt-0.5 leading-relaxed">{localError || error}</p>
+                </div>
+              </div>
+              {error && error.toLowerCase().includes('gemini') && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const trimmed = opportunityText.trim();
+                    if (trimmed) {
+                      try {
+                        await runAnalysis(trimmed, undefined, true);
+                      } catch {
+                        // Handled
+                      }
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-white border border-rose-300 text-rose-900 hover:bg-rose-100 rounded-md font-medium text-xs shrink-0 transition-colors self-start sm:self-auto"
+                >
+                  Run in Deterministic Mode →
+                </button>
+              )}
             </div>
           )}
 

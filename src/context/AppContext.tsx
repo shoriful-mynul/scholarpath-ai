@@ -83,7 +83,7 @@ interface AppContextType {
     description: string;
     rawText: string;
   }>;
-  runAnalysis: (rawText: string, profileOverride?: StudentProfile) => Promise<FullAnalysisResult>;
+  runAnalysis: (rawText: string, profileOverride?: StudentProfile, allowFallback?: boolean) => Promise<FullAnalysisResult>;
   loadDemoAnalysis: () => void;
   loadSampleProfile: (profileId: string) => void;
   serverHealth: HealthResponse | null;
@@ -276,7 +276,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const runAnalysis = async (rawText: string, profileOverride?: StudentProfile): Promise<FullAnalysisResult> => {
+  const runAnalysis = async (
+    rawText: string,
+    profileOverride?: StudentProfile,
+    allowFallback?: boolean
+  ): Promise<FullAnalysisResult> => {
     setError(null);
     setAnalysisErrors([]);
     setAnalysisStatus('reading');
@@ -335,7 +339,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 6000);
 
     try {
-      const result = await runAnalysisPipeline(rawText, activeStud);
+      const result = await runAnalysisPipeline(rawText, activeStud, allowFallback);
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
@@ -344,7 +348,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setAnalysisStatus('completed');
       setPipelineStep(6);
-      setPipelineMessage('Full 5-stage agent pipeline verified: Report generated successfully.');
+      if (result.aiAnalysisFailed) {
+        setPipelineMessage('Deterministic evaluation complete (AI analysis could not be completed).');
+      } else {
+        setPipelineMessage('Full 5-stage agent pipeline verified: Report generated successfully.');
+      }
 
       setExtractedOpportunity(result.opportunity);
       setEligibilityAnalysis(result.eligibility);
@@ -357,8 +365,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+      clearTimeout(timer5);
       setAnalysisStatus('error');
-      const msg = err?.message || 'Failed to complete agent analysis.';
+      const msg = err?.message || 'Analysis could not be completed.';
       setError(msg);
       setAnalysisErrors(prev => [msg, ...prev]);
       throw err;

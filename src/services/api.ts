@@ -80,20 +80,22 @@ export async function extractDocumentText(file: File): Promise<{ text: string; p
 
 export async function runAnalysisPipeline(
   rawOpportunityText: string,
-  studentProfile: StudentProfile
+  studentProfile: StudentProfile,
+  allowDeterministicFallback?: boolean
 ): Promise<FullAnalysisResult> {
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       rawOpportunityText,
-      studentProfile
+      studentProfile,
+      allowDeterministicFallback: Boolean(allowDeterministicFallback)
     })
   });
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Analysis failed (${res.status})`);
+    throw new Error(errData.error || `Analysis could not be completed (Server returned status ${res.status})`);
   }
 
   return res.json();

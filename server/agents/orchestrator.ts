@@ -30,14 +30,15 @@ import { runVerificationAgent } from './verificationAgent';
 export async function runScholarPathPipeline(
   rawOpportunityText: string,
   student: StudentProfile,
-  aiClient?: GoogleGenAI
+  aiClient?: GoogleGenAI,
+  options?: { allowFallback?: boolean }
 ): Promise<FullAnalysisResult> {
   const startTime = Date.now();
   console.log(`[ScholarPath Pipeline] Starting 5-agent execution for student "${student.name}"...`);
 
   // Stage 1: Opportunity Analyzer
   console.log('[ScholarPath Pipeline] Running Stage 1: Opportunity Analyzer...');
-  const opportunity: OpportunityAnalysis = await runOpportunityAnalyzer(rawOpportunityText, aiClient);
+  const opportunity: OpportunityAnalysis = await runOpportunityAnalyzer(rawOpportunityText, aiClient, options);
 
   // Stage 2: Eligibility Analyzer (Strict deterministic code checks)
   console.log('[ScholarPath Pipeline] Running Stage 2: Deterministic Eligibility Analyzer...');
@@ -45,15 +46,21 @@ export async function runScholarPathPipeline(
 
   // Stage 3: Profile Match Agent
   console.log('[ScholarPath Pipeline] Running Stage 3: Profile Match Agent...');
-  const profileMatch: ProfileMatchResult = await runProfileMatchAgent(student, opportunity, eligibility, aiClient);
+  const profileMatch: ProfileMatchResult = await runProfileMatchAgent(student, opportunity, eligibility, aiClient, options);
 
   // Stage 4: Application Planner Agent
   console.log('[ScholarPath Pipeline] Running Stage 4: Application Planner Agent...');
-  const applicationPlan: ApplicationPlanResult = await runApplicationPlanner(student, opportunity, eligibility, profileMatch, aiClient);
+  const applicationPlan: ApplicationPlanResult = await runApplicationPlanner(student, opportunity, eligibility, profileMatch, aiClient, options);
 
   // Stage 5: Verification Agent (Adversarial Integrity Auditor)
   console.log('[ScholarPath Pipeline] Running Stage 5: Verification Agent...');
   const verification: VerificationResult = await runVerificationAgent(student, opportunity, eligibility, profileMatch, applicationPlan, aiClient);
+
+  const aiAnalysisFailed = Boolean(
+    opportunity.aiFailed || profileMatch.aiFailed || applicationPlan.aiFailed || verification.aiFailed
+  );
+  const aiFailureReason =
+    opportunity.aiFailureReason || profileMatch.aiFailureReason || applicationPlan.aiFailureReason;
 
   // Adapter for backwards-compatibility with views expecting legacy match / plan shapes
   const match: OpportunityMatchAnalysis = {
@@ -102,6 +109,8 @@ export async function runScholarPathPipeline(
     plan,
     studentName: student.name,
     opportunityName: opportunity.opportunityName,
-    isDemoFallback: !process.env.GEMINI_API_KEY
+    isDemoFallback: !process.env.GEMINI_API_KEY || aiAnalysisFailed,
+    aiAnalysisFailed,
+    aiFailureReason
   };
 }

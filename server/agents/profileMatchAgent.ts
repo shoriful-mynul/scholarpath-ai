@@ -23,7 +23,8 @@ export async function runProfileMatchAgent(
   studentProfile: StudentProfile,
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
-  aiClient?: GoogleGenAI
+  aiClient?: GoogleGenAI,
+  options?: { allowFallback?: boolean }
 ): Promise<ProfileMatchResult> {
   if (aiClient && process.env.GEMINI_API_KEY) {
     try {
@@ -181,8 +182,15 @@ Produce a structured JSON evaluation conforming to the requested schema.`;
           return sanitizeProfileMatch(parsed, studentProfile);
         }
       }
-    } catch (err) {
-      console.warn('[ProfileMatchAgent] Gemini API invocation failed, falling back to deterministic alignment:', err);
+    } catch (err: any) {
+      console.warn('[ProfileMatchAgent] Gemini API invocation failed:', err?.message || err);
+      if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
+        throw new Error(`Analysis could not be completed: Gemini AI failed in Profile Match Agent (${err?.message || 'API error'}).`);
+      }
+      const detMatch = generateDeterministicProfileMatch(studentProfile, opportunityAnalysis, eligibilityAnalysis);
+      detMatch.aiFailed = true;
+      detMatch.aiFailureReason = err?.message || 'Gemini API call failed';
+      return detMatch;
     }
   }
 

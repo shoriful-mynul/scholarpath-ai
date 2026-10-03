@@ -115,7 +115,7 @@ app.post('/api/extract-document', async (req, res) => {
 // 4. Main Multi-Agent Pipeline Endpoint
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { rawOpportunityText, studentProfile } = req.body;
+    const { rawOpportunityText, studentProfile, allowDeterministicFallback } = req.body;
 
     if (!rawOpportunityText || typeof rawOpportunityText !== 'string' || !rawOpportunityText.trim()) {
       return res.status(400).json({ error: 'Opportunity text is required.' });
@@ -148,12 +148,22 @@ app.post('/api/analyze', async (req, res) => {
       certificationsAwards: Array.isArray(studentProfile.certificationsAwards) ? studentProfile.certificationsAwards : []
     };
 
-    const analysisResult = await runScholarPathPipeline(rawOpportunityText, student, aiClient);
+    const analysisResult = await runScholarPathPipeline(
+      rawOpportunityText,
+      student,
+      aiClient,
+      { allowFallback: Boolean(allowDeterministicFallback) }
+    );
     return res.json(analysisResult);
   } catch (err: any) {
     console.error('[API /analyze error]:', err);
-    return res.status(500).json({
-      error: 'Agent pipeline execution error: ' + (err?.message || 'Unexpected server error')
+    const rawMsg = err?.message || 'Unexpected server error';
+    const userFacingMsg = rawMsg.startsWith('Analysis could not be completed')
+      ? rawMsg
+      : `Analysis could not be completed: ${rawMsg}`;
+    return res.status(502).json({
+      error: userFacingMsg,
+      aiAnalysisFailed: true
     });
   }
 });

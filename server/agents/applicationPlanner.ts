@@ -26,7 +26,8 @@ export async function runApplicationPlanner(
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
   profileMatch: ProfileMatchResult,
-  aiClient?: GoogleGenAI
+  aiClient?: GoogleGenAI,
+  options?: { allowFallback?: boolean }
 ): Promise<ApplicationPlanResult> {
   const needsVerificationItems = eligibilityAnalysis.criteriaResults.filter(
     c => c.status === 'NEEDS_VERIFICATION'
@@ -145,8 +146,15 @@ Produce a structured JSON plan conforming to the requested schema.`;
         const parsed = JSON.parse(response.text) as ApplicationPlanResult;
         return postProcessPlan(parsed, opportunityAnalysis, eligibilityAnalysis, studentProfile);
       }
-    } catch (err) {
-      console.warn('[ApplicationPlanner] Gemini call failed, falling back to deterministic planning:', err);
+    } catch (err: any) {
+      console.warn('[ApplicationPlanner] Gemini call failed:', err?.message || err);
+      if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
+        throw new Error(`Analysis could not be completed: Gemini AI failed in Application Planner Agent (${err?.message || 'API error'}).`);
+      }
+      const detPlan = generateDeterministicPlan(studentProfile, opportunityAnalysis, eligibilityAnalysis, profileMatch, isAmbiguousDeadline);
+      detPlan.aiFailed = true;
+      detPlan.aiFailureReason = err?.message || 'Gemini API call failed';
+      return detPlan;
     }
   }
 
