@@ -1,4 +1,4 @@
-import { GeminiAI, Type } from '../lib/gemini';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -23,7 +23,7 @@ export async function runProfileMatchAgent(
   studentProfile: StudentProfile,
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
-  aiClient?: GeminiAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<ProfileMatchResult> {
   if (aiClient) {
@@ -110,9 +110,9 @@ ${JSON.stringify({
 Produce a structured JSON evaluation conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== 'gemini-3.5-flash'
-          ? process.env.GEMINI_MODEL
-          : 'gemini-3.5-flash',
+        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an objective fellowship and scholarship admissions advisor. You evaluate applicant background alignment with academic integrity and rigorous evidence grounding. Never invent claims or compute acceptance probabilities.',
@@ -185,13 +185,13 @@ Produce a structured JSON evaluation conforming to the requested schema.`;
         }
       }
     } catch (err: any) {
-      console.warn('[ProfileMatchAgent] Gemini invocation failed:', err?.message || err);
+      console.warn('[ProfileMatchAgent] OpenRouter invocation failed:', err?.message || err);
       if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
-        throw new Error(`Analysis could not be completed: Gemini AI failed in Profile Match Agent (${err?.message || 'API error'}).`);
+        throw new Error(`Analysis could not be completed: OpenRouter AI failed in Profile Match Agent (${err?.message || 'API error'}).`);
       }
       const detMatch = generateDeterministicProfileMatch(studentProfile, opportunityAnalysis, eligibilityAnalysis);
       detMatch.aiFailed = true;
-      detMatch.aiFailureReason = err?.message || 'Gemini API call failed';
+      detMatch.aiFailureReason = err?.message || 'OpenRouter API call failed';
       return detMatch;
     }
   }
