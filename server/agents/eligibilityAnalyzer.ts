@@ -195,7 +195,7 @@ export function runEligibilityAnalyzer(
         isDeterministic: true
       });
     }
-  }  } else if (opportunity.eligibleCountries.length > 0) {
+  } else if (opportunity.eligibleCountries.length > 0) {
     const studentNat = (student.nationality || '').toLowerCase().trim();
     const studentCountry = (student.country || '').toLowerCase().trim();
 
