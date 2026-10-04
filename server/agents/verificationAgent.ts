@@ -184,60 +184,6 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
     });
   }
 
-  // AI-generated audit flags are advisory; only retain flags whose claim
-  // can be tied to the known pipeline data. This prevents the auditor itself
-  // from inventing requirements or profile facts.
-  const normalizeAudit = (value: string) =>
-    String(value || '').toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').replace(/\\s+/g, ' ').trim();
-  const studentAuditCorpus = [
-    studentProfile.name,
-    studentProfile.currentDegree,
-    studentProfile.fieldOfStudy,
-    studentProfile.university,
-    ...(studentProfile.technicalSkills || []),
-    ...(studentProfile.programmingLanguages || []),
-    ...(studentProfile.aiMlSkills || []),
-    ...(studentProfile.otherSkills || []),
-    ...(studentProfile.projects || []).flatMap(p => [p.title, p.description]),
-    ...(studentProfile.internships || []).flatMap(i => [i.role, i.organization, i.description]),
-    ...(studentProfile.researchExperience || []).flatMap(r => [r.title, r.labOrMentor, r.description]),
-    ...(studentProfile.leadership || []).flatMap(l => [l.role, l.organization, l.description]),
-    ...(studentProfile.certificationsAwards || []).flatMap(a => [a.name, a.issuer])
-  ].filter(Boolean).map(normalizeAudit);
-
-  const opportunityAuditCorpus = [
-    opportunityAnalysis.opportunityName,
-    opportunityAnalysis.organization,
-    opportunityAnalysis.summary,
-    ...(opportunityAnalysis.academicRequirements || []),
-    ...(opportunityAnalysis.gpaRequirements || []),
-    ...(opportunityAnalysis.degreeRequirements || []),
-    ...(opportunityAnalysis.yearRequirements || []),
-    ...(opportunityAnalysis.ageRequirements || []),
-    ...(opportunityAnalysis.requiredDocuments || []),
-    ...(opportunityAnalysis.languageRequirements || []),
-    ...(opportunityAnalysis.otherRequirements || []),
-    ...(opportunityAnalysis.evidence || []).map(e => e.snippet)
-  ].filter(Boolean).map(normalizeAudit);
-
-  const auditClaimGrounded = (flag: VerificationFlag) => {
-    const claim = normalizeAudit(flag.claim);
-    if (!claim) return false;
-    if (flag.category === 'HALLUCINATED_REQUIREMENT') {
-      const lower = claim;
-      const exams = ['sat','act','gre','gmat','mcat','lsat','ielts','toefl'];
-      if (exams.some(e => lower.includes(e))) return true;
-      return opportunityAuditCorpus.some(x => x.includes(claim) || claim.includes(x));
-    }
-    if (flag.category === 'UNSUPPORTED_CLAIM') {
-      return studentAuditCorpus.some(x => x.includes(claim) || claim.includes(x)) ||
-        /ai analysis completion|upstream openrouter/i.test(flag.claim);
-    }
-    return true;
-  };
-
-  aiFlags = aiFlags.filter(auditClaimGrounded);
-
   // Combine flags and deduplicate
   const allFlagsMap = new Map<string, VerificationFlag>();
   for (const flag of [...programmaticFlags, ...aiFlags]) {
