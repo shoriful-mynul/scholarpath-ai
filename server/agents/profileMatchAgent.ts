@@ -110,7 +110,9 @@ ${JSON.stringify({
 Produce a structured JSON evaluation conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an objective fellowship and scholarship admissions advisor. You evaluate applicant background alignment with academic integrity and rigorous evidence grounding. Never invent claims or compute acceptance probabilities.',
@@ -201,8 +203,10 @@ function sanitizeProfileMatch(
   raw: ProfileMatchResult,
   student: StudentProfile
 ): ProfileMatchResult {
-  const studentText = [
-    student.name,
+  // Candidate evidence must be traceable to a concrete profile field.
+  // We intentionally use exact/normalized phrase matching rather than loose word overlap,
+  // because generic words such as "project", "research", or "AI" can create false positives.
+  const evidenceCorpus = [
     student.currentDegree,
     student.fieldOfStudy,
     student.university,
@@ -215,68 +219,60 @@ function sanitizeProfileMatch(
     ...(student.researchExperience || []).flatMap(r => [r.title, r.labOrMentor, r.description, r.publicationsOrOutcomes]),
     ...(student.leadership || []).flatMap(l => [l.role, l.organization, l.description]),
     ...(student.certificationsAwards || []).flatMap(a => [a.name, a.issuer, String(a.year || '')])
-  ].filter(Boolean).join(' ').toLowerCase();
+  ].filter(Boolean).map(String);
 
-  const claimIsGrounded = (claim: string): boolean => {
-    const normalized = String(claim || '').toLowerCase().trim();
-    if (!normalized) return false;
-    if (studentText.includes(normalized)) return true;
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[“”"']/g, '').replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-    const tokens = normalized
-      .split(/[^a-z0-9+#.-]+/i)
-      .filter(t => t.length >= 4);
+  const corpus = evidenceCorpus.map(normalize);
 
-    if (tokens.length === 0) return false;
-    const matched = tokens.filter(t => studentText.includes(t)).length;
-    return matched / tokens.length >= 0.6;
+  const hasExactEvidence = (claim: string): boolean => {
+    const n = normalize(claim);
+    if (!n || n.length < 3) return false;
+    return corpus.some(entry => entry === n || entry.includes(n) || n.includes(entry));
+  };
+
+  const extractEvidence = (claim: string): string | null => {
+    const n = normalize(claim);
+    const hit = evidenceCorpus.find(entry => {
+      const e = normalize(entry);
+      return e && n && (e.includes(n) || n.includes(e));
+    });
+    return hit || null;
   };
 
   const groundedStrongMatches = (raw.strongMatches || []).filter(m =>
-    claimIsGrounded(m.studentEvidence)
+    hasExactEvidence(m.studentEvidence)
   );
   const groundedExperience = (raw.relevantExperience || []).filter(e =>
-    claimIsGrounded(e.evidence || e.experience)
+    hasExactEvidence(e.evidence) || hasExactEvidence(e.experience)
   );
   const groundedSkills = (raw.relevantSkills || []).filter(s =>
-    claimIsGrounded(s.skill)
+    hasExactEvidence(s.skill)
   );
 
-  const removedCount =
-    (raw.strongMatches || []).length - groundedStrongMatches.length +
-    (raw.relevantExperience || []).length - groundedExperience.length +
-    (raw.relevantSkills || []).length - groundedSkills.length;
+  const gaps = (raw.gaps || []).filter(g => {
+    const area = normalize(g.area);
+    return area && !['gpa', 'eligibility', 'documents', 'enrollment', 'deadline'].includes(area) ||
+      area && !hasExactEvidence(g.reason);
+  });
 
   return {
+    ...raw,
     strongMatches: groundedStrongMatches.map(m => ({
-      area: m.area || 'Academic Fit',
-      studentEvidence: m.studentEvidence,
-      opportunityRelevance: m.opportunityRelevance || 'Program scope alignment',
-      reasoning: m.reasoning || ''
+      ...m,
+      studentEvidence: extractEvidence(m.studentEvidence) || m.studentEvidence
     })),
     relevantExperience: groundedExperience.map(e => ({
-      experience: e.experience || 'Experience',
-      relevance: e.relevance || 'Relevant background',
-      evidence: e.evidence || e.experience
+      ...e,
+      evidence: extractEvidence(e.evidence) || extractEvidence(e.experience) || e.evidence
     })),
-    relevantSkills: groundedSkills.map(s => ({
-      skill: s.skill,
-      relevance: s.relevance || 'Direct competency'
-    })),
-    gaps: (raw.gaps || []).map(g => ({
-      area: g.area || 'Requirement Verification',
-      reason: g.reason || '',
-      severity: (['HIGH', 'MEDIUM', 'LOW'].includes(g.severity) ? g.severity : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW'
-    })),
-    summary: removedCount > 0
-      ? `${raw.summary || 'Profile alignment evaluated.'} Unsupported profile claims were removed during evidence grounding.`
-      : (raw.summary || `Profile alignment evaluated from the submitted candidate profile.`)
+    relevantSkills: groundedSkills,
+    gaps,
+    summary: raw.summary || 'Profile alignment was limited to evidence explicitly present in the submitted student profile.'
   };
 }
 
-/**
- * Deterministic Profile Match Fallback
- * Extracts factual overlaps between student profile and opportunity text without hallucinating.
- */
 function generateDeterministicProfileMatch(
   student: StudentProfile,
   opportunity: OpportunityAnalysis,
