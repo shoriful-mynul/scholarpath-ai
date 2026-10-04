@@ -198,8 +198,19 @@ function postProcessPlan(
     }
   }
 
+  // Opportunity-requirement firewall: the planner may only present documents that
+  // Agent 1 explicitly extracted from the source. Never let the LLM invent
+  // transcripts, essays, recommendations, tests, or other dossier items.
+  const sourceDocuments = (opportunity.requiredDocuments || []).map(d => d.toLowerCase().trim());
+  const isSourceDocument = (name: string) => {
+    const n = name.toLowerCase().trim();
+    return sourceDocuments.some(d => d === n || d.includes(n) || n.includes(d));
+  };
+
   // Ensure documents don't claim availability without evidence
-  const sanitizedDocs: ApplicationPlanDocument[] = (raw.documents || []).map(doc => {
+  const sanitizedDocs: ApplicationPlanDocument[] = (raw.documents || [])
+    .filter(doc => isSourceDocument(doc.document))
+    .map(doc => {
     let status = doc.status;
     const nameLower = doc.document.toLowerCase();
     if (nameLower.includes('transcript') && status === 'LIKELY_AVAILABLE') {
@@ -222,6 +233,27 @@ function postProcessPlan(
     deadlineNotes = `Notice: The extracted deadline "${deadline}" is rolling or ambiguous. Planning timelines should be verified directly with the sponsor; do not assume a distant deadline.`;
   }
 
+  // Keep requirementsToVerify source-grounded: only eligibility criteria derived
+  // from Agent 1 may appear here. This prevents downstream invention.
+  const sourceRequirementText = [
+    ...(opportunity.academicRequirements || []),
+    ...(opportunity.gpaRequirements || []),
+    ...(opportunity.degreeRequirements || []),
+    ...(opportunity.yearRequirements || []),
+    ...(opportunity.ageRequirements || []),
+    ...(opportunity.requiredDocuments || []),
+    ...(opportunity.languageRequirements || []),
+    ...(opportunity.otherRequirements || []),
+    ...(opportunity.eligibleCountries || [])
+  ].map(v => v.toLowerCase().trim());
+
+  const isSourceRequirement = (value: string) => {
+    const n = value.toLowerCase().trim();
+    return sourceRequirementText.some(s => s === n || s.includes(n) || n.includes(s));
+  };
+
+  const verifiedRequirements = reqsToVerify.filter(r => isSourceRequirement(r.requirement));
+
   return {
     priorityTasks: (raw.priorityTasks || []).map((t, idx) => ({
       task: t.task || 'Application Preparation Task',
@@ -232,7 +264,7 @@ function postProcessPlan(
     })),
     documents: sanitizedDocs,
     profileHighlights: raw.profileHighlights || [],
-    requirementsToVerify: reqsToVerify,
+    requirementsToVerify: verifiedRequirements,
     deadline,
     deadlineNotes
   };
