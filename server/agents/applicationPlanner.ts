@@ -72,12 +72,11 @@ Eligibility Summary:
 Produce a structured JSON plan conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an executive application planning strategist. Generate practical, concrete milestone timelines organized by urgency. Never assume missing documents exist.',
-          responseMimeType: 'application/json',
-          responseSchema: {
+                    responseSchema: {
             type: Type.OBJECT,
             properties: {
               priorityTasks: {
@@ -147,13 +146,13 @@ Produce a structured JSON plan conforming to the requested schema.`;
         return postProcessPlan(parsed, opportunityAnalysis, eligibilityAnalysis, studentProfile);
       }
     } catch (err: any) {
-      console.warn('[ApplicationPlanner] Gemini call failed:', err?.message || err);
+      console.warn('[ApplicationPlanner] OpenRouter call failed:', err?.message || err);
       if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
-        throw new Error(`Analysis could not be completed: Gemini AI failed in Application Planner Agent (${err?.message || 'API error'}).`);
+        throw new Error(`Analysis could not be completed: OpenRouter AI failed in Application Planner Agent (${err?.message || 'API error'}).`);
       }
       const detPlan = generateDeterministicPlan(studentProfile, opportunityAnalysis, eligibilityAnalysis, profileMatch, isAmbiguousDeadline);
       detPlan.aiFailed = true;
-      detPlan.aiFailureReason = err?.message || 'Gemini API call failed';
+      detPlan.aiFailureReason = err?.message || 'OpenRouter API call failed';
       return detPlan;
     }
   }
