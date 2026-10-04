@@ -49,7 +49,7 @@ ${trimmed.slice(0, 25000)}
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           response = await aiClient.models.generateContent({
-            model: 'openai/gpt-oss-20b:free',
+            model: 'google/gemma-4-31b-it:free',
             contents: prompt,
             config: {
               systemInstruction: 'You are an objective academic document analysis agent. Extract only what is explicitly written in the source text and preserve exact evidence snippets for each requirement.',
