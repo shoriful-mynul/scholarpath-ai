@@ -74,7 +74,7 @@ export const DashboardView: React.FC = () => {
           {/* Quick system status */}
           <div className="pt-4 flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100">
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${serverHealth?.hasGeminiKey ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className={`w-2 h-2 rounded-full ${serverHealth?.hasOpenRouterKey ? 'bg-emerald-500' : 'bg-amber-500'}`} />
               <span>{serverHealth?.hasGeminiKey ? 'Gemini 3.8 Flash Agent Mode' : 'Deterministic Mode (Key ready in Secrets)'}</span>
             </span>
             <span aria-hidden="true">·</span>
