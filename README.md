@@ -19,7 +19,7 @@ Applying to scholarships and prestigious academic fellowships (such as Google Ge
 
 ## 2. Solution
 
-ScholarPath AI pairs **deterministic code logic** (for strict arithmetic comparisons, major matches, and citizenship rules) with **Gemini 3.8 Flash** (for contextual interpretation and nuanced document reasoning).
+ScholarPath AI pairs **deterministic code logic** (for strict arithmetic comparisons, major matches, and citizenship rules) with **OpenRouter-hosted AI models** (for contextual interpretation and nuanced document reasoning).
 
 Every evaluated requirement retains an **exact evidence quote from the source text**. If reliable evidence is absent, the system flags it as `"Needs Verification"`.
 
@@ -86,7 +86,7 @@ User Input (PDF Document or Pasted Text) + Student Profile
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Motion
 - **Backend**: Node.js, Express, `server.ts`
-- **AI Reasoning**: Google Gemini API (`@google/genai` TypeScript SDK, `gemini-3.8-flash` model with server-side proxy)
+- **AI Reasoning**: OpenRouter API (OpenAI-compatible SDK with structured JSON outputs)
 - **Document Ingestion**: `pdf-parse` for PDF text extraction and FileReader for raw documents
 - **Tooling**: Vite 8, tsx, Tailwind CSS Vite plugin
 
@@ -134,7 +134,7 @@ The application runs on `http://localhost:3000`.
 Create a `.env` file in the project root:
 
 ```env
-# GEMINI_API_KEY: Required for live Gemini 3.8 Flash multi-agent reasoning.
+# GEMINI_API_KEY: Required for live OpenRouter-hosted AI models multi-agent reasoning.
 # In Google AI Studio, this is injected automatically from the Secrets panel.
 GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 
@@ -142,7 +142,7 @@ GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 PORT=3000
 ```
 
-> **Note**: If `GEMINI_API_KEY` is not present, ScholarPath AI automatically activates its high-fidelity deterministic engine and pre-computed sample mode, allowing full demonstration of all UI features, eligibility math, and action planning without breaking.
+> **Note**: If `OPENROUTER_API_KEY` is not present, ScholarPath AI automatically activates its high-fidelity deterministic engine and pre-computed sample mode, allowing full demonstration of all UI features, eligibility math, and action planning without breaking.
 
 ---
 
