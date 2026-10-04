@@ -252,10 +252,17 @@ function postProcessPlan(
     return sourceRequirementText.some(s => s === n || s.includes(n) || n.includes(s));
   };
 
-  const verifiedRequirements = reqsToVerify.filter(r => isSourceRequirement(r.requirement));
+  const eligibilityRequirementLabels = new Set(eligibility.criteriaResults.map(c => (c.requirementLabel || c.requirement).toLowerCase().trim()));
+  const verifiedRequirements = reqsToVerify.filter(r => eligibilityRequirementLabels.has(r.requirement.toLowerCase().trim()) || isSourceRequirement(r.requirement));
+  const exams = ['sat', 'act', 'gre', 'gmat', 'mcat', 'lsat', 'ielts', 'toefl'];
+  const sourceJoined = sourceRequirementText.join(' ');
+  const safeTasks = (raw.priorityTasks || []).filter(t => {
+    const taskText = `${t.task || ''} ${t.reason || ''} ${t.relatedRequirement || ''}`.toLowerCase();
+    return !exams.some(exam => taskText.includes(exam) && !sourceJoined.includes(exam));
+  });
 
   return {
-    priorityTasks: (raw.priorityTasks || []).map((t, idx) => ({
+    priorityTasks: safeTasks.map((t, idx) => ({
       task: t.task || 'Application Preparation Task',
       priority: (['HIGH', 'MEDIUM', 'LOW'].includes(t.priority) ? t.priority : 'MEDIUM') as any,
       reason: t.reason || '',
