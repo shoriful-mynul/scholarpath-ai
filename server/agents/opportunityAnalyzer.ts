@@ -1,9 +1,9 @@
-import { GeminiAI, Type } from '../lib/gemini';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import { OpportunityAnalysis, ExtractedRequirement, OpportunityEvidenceItem } from './types';
 
 export async function runOpportunityAnalyzer(
   rawOpportunityText: string,
-  aiClient?: GeminiAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<OpportunityAnalysis> {
   const trimmed = rawOpportunityText.trim();
@@ -11,7 +11,7 @@ export async function runOpportunityAnalyzer(
     throw new Error('Opportunity text is empty. Please provide opportunity text or upload a document.');
   }
 
-  // Use Gemini with a structured schema when an AI client is available.
+  // Use OpenRouter with a structured schema when an AI client is available.
   if (aiClient) {
     try {
       const prompt = `You are Agent 1 (Opportunity Analyzer) in ScholarPath AI.
@@ -49,9 +49,9 @@ ${trimmed.slice(0, 25000)}
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           response = await aiClient.models.generateContent({
-            model: process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== 'gemini-3.5-flash'
-              ? process.env.GEMINI_MODEL
-              : 'gemini-3.5-flash',
+            model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+              ? process.env.OPENROUTER_MODEL
+              : 'openai/gpt-oss-20b:free',
             contents: prompt,
             config: {
               systemInstruction: 'You are an objective academic document analysis agent. Extract only what is explicitly written in the source text and preserve exact evidence snippets for each requirement.',
@@ -147,14 +147,14 @@ ${trimmed.slice(0, 25000)}
       }
 
       if (!response || !response.text) {
-        throw lastErr || new Error('No response from Gemini API.');
+        throw lastErr || new Error('No response from OpenRouter API.');
       }
 
       let parsed: any = {};
       try {
         parsed = JSON.parse(response.text || '{}');
       } catch (jsonErr) {
-        console.warn('Failed to parse Gemini JSON output directly, attempting safe substring recovery:', jsonErr);
+        console.warn('Failed to parse OpenRouter JSON output directly, attempting safe substring recovery:', jsonErr);
         const match = response.text?.match(/\{[\s\S]*\}/);
         if (match) {
           parsed = JSON.parse(match[0]);
@@ -403,14 +403,14 @@ ${trimmed.slice(0, 25000)}
         rawTextLength: trimmed.length
       };
     } catch (err: any) {
-      console.warn('Gemini Opportunity Analyzer failed or encountered an error:', err?.message || err);
+      console.warn('OpenRouter Opportunity Analyzer failed or encountered an error:', err?.message || err);
       if (!options?.allowFallback) {
-        const detail = err?.message || 'Gemini API call failed';
-        throw new Error(`Analysis could not be completed: Gemini AI request failed (${detail}).`);
+        const detail = err?.message || 'OpenRouter API call failed';
+        throw new Error(`Analysis could not be completed: OpenRouter AI request failed (${detail}).`);
       }
       const fallbackResult = extractOpportunityDeterministically(trimmed);
       fallbackResult.aiFailed = true;
-      fallbackResult.aiFailureReason = err?.message || 'Gemini API call failed';
+      fallbackResult.aiFailureReason = err?.message || 'OpenRouter API call failed';
       return fallbackResult;
     }
   }
