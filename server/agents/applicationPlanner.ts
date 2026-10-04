@@ -72,7 +72,9 @@ Eligibility Summary:
 Produce a structured JSON plan conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an executive application planning strategist. Generate practical, concrete milestone timelines organized by urgency. Never assume missing documents exist.',
@@ -248,7 +250,7 @@ function generateDeterministicPlan(
 
   // 1. Letters of recommendation & Transcripts (High Lead Time)
   const reqDocs = opportunity.requiredDocuments || [];
-  const needsTranscript = reqDocs.some(d => d.toLowerCase().includes('transcript')) || reqDocs.length === 0;
+  const needsTranscript = reqDocs.some(d => d.toLowerCase().includes('transcript'));
   const needsRecLetter = reqDocs.some(d => d.toLowerCase().includes('recommend') || d.toLowerCase().includes('letter') || d.toLowerCase().includes('reference'));
 
   if (needsRecLetter) {
@@ -290,75 +292,36 @@ function generateDeterministicPlan(
     }
   }
 
-  // 3. Draft Statement / Essay
-  priorityTasks.push({
-    task: `Draft Statement of Purpose tailored to ${opportunity.organization}`,
-    priority: 'MEDIUM',
-    reason: `Align personal statement with the stated mission of ${opportunity.opportunityName} and highlight relevant competencies.`,
-    relatedRequirement: 'Application Essays / Personal Statement',
-    suggestedOrder: order++
-  });
-
-  // 4. Update CV/Resume highlighting matched projects
-  priorityTasks.push({
-    task: 'Format CV / Resume with Matched Projects and Skills',
-    priority: 'MEDIUM',
-    reason: `Highlight key projects (${student.projects.slice(0, 2).map(p => p.title).join(', ') || 'portfolio work'}) and technical competencies.`,
-    relatedRequirement: 'Curriculum Vitae / Resume',
-    suggestedOrder: order++
-  });
-
-  // 5. Final review
-  priorityTasks.push({
-    task: 'Perform Final Dossier Quality Check and Review Proofs',
-    priority: 'LOW',
-    reason: 'Verify all attachments, verify character limits, and confirm recommendation submissions prior to deadline.',
-    relatedRequirement: 'Final Submission Dossier',
-    suggestedOrder: order++
-  });
-
-  // Documents status mapping (Never assume transcript is readily available without proof)
-  const documents: ApplicationPlanDocument[] = [];
-  const standardDocs = reqDocs.length > 0 ? reqDocs : [
-    'Official Academic Transcript',
-    'Curriculum Vitae / Resume',
-    'Letters of Recommendation',
-    'Statement of Purpose'
-  ];
-
-  for (const doc of standardDocs) {
-    const dLower = doc.toLowerCase();
-    if (dLower.includes('transcript')) {
-      documents.push({
-        document: doc,
-        status: 'UNKNOWN',
-        reason: 'Current official transcript must be requested from university registrar; cannot assume official copy is currently in candidate possession.'
-      });
-    } else if (dLower.includes('resume') || dLower.includes('cv')) {
-      documents.push({
-        document: doc,
-        status: 'NEEDS_PREPARATION',
-        reason: 'Candidate background data exists in profile but must be formatted into opportunity-tailored PDF.'
-      });
-    } else if (dLower.includes('recommend') || dLower.includes('reference')) {
-      documents.push({
-        document: doc,
-        status: 'NEEDS_PREPARATION',
-        reason: 'External letters must be requested from mentors or academic faculty supervisors.'
-      });
-    } else if (dLower.includes('statement') || dLower.includes('essay') || dLower.includes('cover')) {
-      documents.push({
-        document: doc,
-        status: 'NEEDS_PREPARATION',
-        reason: 'Essay must be written specifically aligning candidate trajectory with the opportunity scope.'
-      });
-    } else {
-      documents.push({
-        document: doc,
-        status: 'UNKNOWN',
-        reason: 'Documentation requirements should be verified directly with the application instructions.'
-      });
-    }
+  // Only add statement/CV/final-submission tasks when the opportunity explicitly asks for them.
+  const reqText = reqDocs.map(d => d.toLowerCase());
+  const needsStatement = reqText.some(d => d.includes('statement') || d.includes('essay') || d.includes('cover'));
+  const needsCv = reqText.some(d => d.includes('resume') || d.includes('cv'));
+  if (needsStatement) {
+    priorityTasks.push({
+      task: `Draft application statement tailored to ${opportunity.organization}`,
+      priority: 'MEDIUM',
+      reason: 'The opportunity explicitly lists an essay/statement-type document.',
+      relatedRequirement: 'Application Statement / Essay',
+      suggestedOrder: order++
+    });
+  }
+  if (needsCv) {
+    priorityTasks.push({
+      task: 'Format CV / Resume with evidence matched to the opportunity',
+      priority: 'MEDIUM',
+      reason: 'The opportunity explicitly lists a CV/resume.',
+      relatedRequirement: 'Curriculum Vitae / Resume',
+      suggestedOrder: order++
+    });
+  }
+  if (reqDocs.length > 0) {
+    priorityTasks.push({
+      task: 'Perform final source-backed application checklist',
+      priority: 'LOW',
+      reason: 'Confirm every explicitly required item before submission.',
+      relatedRequirement: 'Explicit application requirements',
+      suggestedOrder: order++
+    });
   }
 
   // Profile Highlights
@@ -384,8 +347,8 @@ function generateDeterministicPlan(
 
   const deadline = opportunity.deadline || 'Unspecified';
   const deadlineNotes = isAmbiguousDeadline
-    ? `The stated deadline "${deadline}" is rolling, ongoing, or ambiguous. Timeline planning requires immediate verification with the program coordinator; do not assume an extended window.`
-    : `Official submission deadline is ${deadline}. All high-priority milestones should be scheduled at least 14 days in advance to allow for recommender and registrar processing.`;
+    ? `UNVERIFIED: requires source confirmation. The extracted deadline "${deadline}" is missing, rolling, ongoing, or ambiguous.`
+    : `Official submission deadline extracted from the opportunity: ${deadline}.`;
 
   return {
     priorityTasks,
