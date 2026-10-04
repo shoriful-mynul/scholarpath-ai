@@ -435,9 +435,9 @@ export function runEligibilityAnalyzer(
   }
 
   // 6. REQUIRED APPLICATION DOSSIER
-  const docsList = opportunity.requiredDocuments.length > 0 
+  const docsList = opportunity.requiredDocuments.length > 0
     ? opportunity.requiredDocuments.join(', ')
-    : 'Transcripts, Resume/CV, Personal Statement, Recommendation Letters';
+    : 'Not explicitly specified in the opportunity source text';
   
   const docEvidence = opportunity.evidence.find(e => 
     e.requirement.toLowerCase().includes('document') || 
@@ -448,11 +448,17 @@ export function runEligibilityAnalyzer(
   pushCriterion({
     id: 'crit_documents',
     category: 'documents',
-    requirement: `Submission of Required Documents: ${docsList}`,
-    studentInformation: 'Profile portfolio available; official transcripts and referee letters pending external completion',
+    requirement: opportunity.requiredDocuments.length > 0
+      ? `Submission of Required Documents: ${docsList}`
+      : 'Application document requirements are not explicitly specified in the provided opportunity text',
+    studentInformation: opportunity.requiredDocuments.length > 0
+      ? 'Document readiness cannot be confirmed from the submitted profile.'
+      : 'No explicit document requirements were extracted from the provided opportunity text.',
     status: 'NEEDS_VERIFICATION',
     evidence: docEvidence,
-    explanation: 'Application dossier requires external verification: official transcripts and letters of recommendation must be requested and verified before deadline.',
+    explanation: opportunity.requiredDocuments.length > 0
+      ? 'Required documents were explicitly extracted from the opportunity source, but candidate readiness must be verified separately.'
+      : 'The provided opportunity text does not explicitly specify application documents. Verify the official application instructions before assuming any document is required.',
     isDeterministic: false
   });
 
