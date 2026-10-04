@@ -207,6 +207,44 @@ function postProcessPlan(
     return sourceDocuments.some(d => d === n || d.includes(n) || n.includes(d));
   };
 
+  // Profile-highlight firewall: every highlight must be traceable to an exact
+  // student-profile entry. Never let the planner invent clubs, leadership roles,
+  // publications, employers, metrics, or projects.
+  const studentEvidenceCorpus = [
+    student.name,
+    student.currentDegree,
+    student.fieldOfStudy,
+    student.university,
+    String(student.gpa || ''),
+    String(student.expectedGraduationYear || ''),
+    ...(student.technicalSkills || []),
+    ...(student.programmingLanguages || []),
+    ...(student.aiMlSkills || []),
+    ...(student.otherSkills || []),
+    ...(student.projects || []).flatMap(p => [p.title, ...(p.techStack || []), p.description]),
+    ...(student.internships || []).flatMap(i => [i.role, i.organization, i.duration, i.description]),
+    ...(student.researchExperience || []).flatMap(r => [r.title, r.labOrMentor, r.description, r.publicationsOrOutcomes]),
+    ...(student.leadership || []).flatMap(l => [l.role, l.organization, l.description]),
+    ...(student.certificationsAwards || []).flatMap(a => [a.name, a.issuer, String(a.year || '')])
+  ].filter(Boolean).map(String);
+
+  const normalizeProfileText = (value: string) =>
+    value.toLowerCase().replace(/[“”"']/g, '').replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const profileCorpus = studentEvidenceCorpus.map(normalizeProfileText);
+  const profileClaimGrounded = (value: string) => {
+    const n = normalizeProfileText(value || '');
+    if (!n || n.length < 3) return false;
+    return profileCorpus.some(entry => entry === n || entry.includes(n) || n.includes(entry));
+  };
+
+  const sanitizedProfileHighlights = (raw.profileHighlights || [])
+    .filter(h => profileClaimGrounded(h.item))
+    .map(h => ({
+      item: h.item,
+      reason: h.reason || 'Relevant evidence explicitly present in the student profile.'
+    }));
+
   // Ensure documents don't claim availability without evidence
   const sanitizedDocs: ApplicationPlanDocument[] = (raw.documents || [])
     .filter(doc => isSourceDocument(doc.document))
@@ -270,7 +308,7 @@ function postProcessPlan(
       suggestedOrder: typeof t.suggestedOrder === 'number' ? t.suggestedOrder : idx + 1
     })),
     documents: sanitizedDocs,
-    profileHighlights: raw.profileHighlights || [],
+    profileHighlights: sanitizedProfileHighlights,
     requirementsToVerify: verifiedRequirements,
     deadline,
     deadlineNotes
