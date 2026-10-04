@@ -37,7 +37,11 @@ function convertSchema(schema: any): any {
     result.items = convertSchema(schema.items);
   }
 
-  if (schema.required) {
+  if (schema.type === Type.OBJECT && schema.properties) {
+    // Strict JSON Schema requires every declared object property to be required.
+    // The application schemas already provide all fields the agents need.
+    result.required = Object.keys(schema.properties);
+  } else if (schema.required) {
     result.required = schema.required;
   }
 
@@ -76,8 +80,10 @@ export class OpenRouterAI {
 
       const model =
         params.model ||
-        process.env.OPENROUTER_MODEL ||
-        process.env.OPENROUTER_MODEL || 'openrouter/free';
+        process.env.OPENROUTER_MODEL &&
+        process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free';
 
       const response = await this.client.chat.completions.create({
         model,
