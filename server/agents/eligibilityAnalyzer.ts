@@ -206,7 +206,7 @@ export function runEligibilityAnalyzer(
     } else {
       const isGlobal = opportunity.eligibleCountries.some(c => {
         const cl = c.toLowerCase().trim();
-        return cl.includes('open globally') || cl.includes('global') || cl.includes('worldwide') || cl.includes('all countries') || cl === 'all' || cl === 'any';
+        return cl.includes('open globally') || cl.includes('global') || cl.includes('worldwide') || cl.includes('all countries') || cl.includes('all nationalit') || cl.includes('all citizenship') || cl.includes('all ethnicit') || cl.includes('any nationality') || cl.includes('open to candidates of all') || cl === 'all' || cl === 'any';
       });
 
       const isMatch = isGlobal || opportunity.eligibleCountries.some(c => {
