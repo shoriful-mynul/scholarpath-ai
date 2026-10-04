@@ -102,6 +102,13 @@ export function runEligibilityAnalyzer(
   const requiresUSorCanada = (oppTextCombined.includes('united states') && oppTextCombined.includes('canada')) ||
     opportunity.eligibleCountries.some(c => c.toLowerCase().includes('united states') || c.toLowerCase().includes('canada'));
 
+  // Distinguish institution-location rules from citizenship/nationality rules.
+  // If the source explicitly ties US/Canada eligibility to where the student studies,
+  // an institution outside those countries is a deterministic hard failure, not
+  // something that should be sent back as a vague verification request.
+  const requiresUSorCanadaStudyLocation = requiresUSorCanada &&
+    /(enrolled|studying|student at|university|college|institution|academic year|bachelor.?s program)/i.test(oppTextCombined);
+
   const countryEvidence = opportunity.evidence.find(e => 
     e.requirement.toLowerCase().includes('citizen') || 
     e.requirement.toLowerCase().includes('countr') ||
@@ -147,48 +154,48 @@ export function runEligibilityAnalyzer(
         isDeterministic: true
       });
     }
-  } else if (requiresUSorCanada) {
-    const studentCountry = (student.country || '').toLowerCase();
-    const studentUniv = (student.university || '').toLowerCase();
+  } else if (requiresUSorCanadaStudyLocation) {
+    const studentCountry = (student.country || '').toLowerCase().trim();
+    const studentUniv = (student.university || '').trim();
 
-    if (!student.country && !student.university) {
+    if (!studentCountry && !studentUniv) {
       pushCriterion({
         id: 'crit_nationality',
         category: 'nationality',
         requirement: 'Enrolled in an accredited institution in the United States or Canada',
-        studentInformation: 'Country not provided in profile',
+        studentInformation: 'Institution location not provided in profile',
         status: 'NEEDS_VERIFICATION',
         evidence: countryEvidence,
-        explanation: 'Cannot verify study location eligibility because your profile is missing country or institution location.',
+        explanation: 'Cannot verify the institution-location requirement because the student profile does not provide a study country or university.',
         isDeterministic: true
       });
     } else if (
-      studentCountry.includes('united states') || studentCountry.includes('usa') || studentCountry.includes('canada') ||
-      studentUniv.includes('washington') || studentUniv.includes('waterloo') || studentUniv.includes('california') || studentUniv.includes('toronto')
+      studentCountry.includes('united states') || studentCountry.includes('usa') || studentCountry.includes('canada')
     ) {
       pushCriterion({
         id: 'crit_nationality',
         category: 'nationality',
         requirement: 'Enrolled in an accredited university in the United States or Canada',
-        studentInformation: `${student.university || 'University'}, ${student.country || 'USA/Canada'}`,
+        studentInformation: studentUniv ? `${studentUniv} (${student.country})` : student.country,
         status: 'MET',
         evidence: countryEvidence,
-        explanation: `Deterministic check passed: Student studies in ${student.country} (${student.university}), fulfilling the regional institutional enrollment prerequisite.`,
+        explanation: 'Deterministic check passed: the student profile places the current institution in the required US/Canada study region.',
         isDeterministic: true
       });
     } else {
+      hardBlockers.push(`Institution-location restriction: Current study location ${student.country} is outside the eligible United States/Canada region.`);
       pushCriterion({
         id: 'crit_nationality',
         category: 'nationality',
         requirement: 'Enrolled in an accredited institution in the United States or Canada',
-        studentInformation: `${student.university} (${student.country})`,
-        status: 'NEEDS_VERIFICATION',
+        studentInformation: studentUniv ? `${studentUniv} (${student.country})` : student.country,
+        status: 'NOT_MET',
         evidence: countryEvidence,
-        explanation: `Student institution is in ${student.country}. Verify if you are enrolled in an eligible exchange, dual-degree, or North American affiliate program.`,
-        isDeterministic: false
+        explanation: `Deterministic check failed: the student profile places the current institution in ${student.country}, outside the required United States/Canada study region. This is an eligibility blocker unless the student will be enrolled in an eligible US/Canadian institution for the required upcoming period.`,
+        isDeterministic: true
       });
     }
-  } else if (opportunity.eligibleCountries.length > 0) {
+  }  } else if (opportunity.eligibleCountries.length > 0) {
     const studentNat = (student.nationality || '').toLowerCase().trim();
     const studentCountry = (student.country || '').toLowerCase().trim();
 
@@ -439,28 +446,9 @@ export function runEligibilityAnalyzer(
     }
   }
 
-  // 6. REQUIRED APPLICATION DOSSIER
-  // Never invent common documents when the opportunity source did not specify any.
-  if ((opportunity.requiredDocuments || []).length > 0) {
-    const docsList = opportunity.requiredDocuments.join(', ');
-    const docEvidence = opportunity.evidence.find(e =>
-      e.requirement.toLowerCase().includes('document') ||
-      e.requirement.toLowerCase().includes('transcript') ||
-      e.category?.toLowerCase() === 'documents' ||
-      e.category?.toLowerCase() === 'document'
-    )?.snippet || 'Required application documents extracted from the opportunity source.';
-
-    pushCriterion({
-      id: 'crit_documents',
-      category: 'documents',
-      requirement: `Submission of Required Documents: ${docsList}`,
-      studentInformation: 'Document readiness cannot be confirmed from the submitted profile.',
-      status: 'NEEDS_VERIFICATION',
-      evidence: docEvidence,
-      explanation: 'These documents were explicitly extracted from the opportunity source, but candidate readiness must be verified separately.',
-      isDeterministic: false
-    });
-  }
+  // Application documents are intentionally NOT eligibility criteria.
+  // Their preparation/readiness is handled by Stage 4 (Application Planner).
+  // This prevents missing documents from changing a candidate's eligibility status.
 
   // Calculate statistics
   const metCount = criteriaResults.filter(c => c.status === 'MET').length;
