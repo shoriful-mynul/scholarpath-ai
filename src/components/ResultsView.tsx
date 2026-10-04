@@ -241,7 +241,7 @@ ${activeVerification.flags && activeVerification.flags.length > 0 ? activeVerifi
               Notice: Live AI Analysis Could Not Be Completed
             </span>
             <p className="text-amber-800 leading-relaxed">
-              {currentAnalysis.aiFailureReason || 'The upstream Gemini AI service was unavailable or timed out.'} Deterministic eligibility criteria and rule-based checks were successfully evaluated. However, full AI agent synthesis was not completed, and the Verification Agent has flagged this evaluation as <strong className="font-mono text-amber-950">ACTION_NEEDED</strong>.
+              {currentAnalysis.aiFailureReason || 'The upstream OpenRouter AI service was unavailable or timed out.'} Deterministic eligibility criteria and rule-based checks were successfully evaluated. However, full AI agent synthesis was not completed, and the Verification Agent has flagged this evaluation as <strong className="font-mono text-amber-950">ACTION_NEEDED</strong>.
             </p>
           </div>
         </div>
