@@ -110,11 +110,11 @@ ${JSON.stringify({
 Produce a structured JSON evaluation conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an objective fellowship and scholarship admissions advisor. You evaluate applicant background alignment with academic integrity and rigorous evidence grounding. Never invent claims or compute acceptance probabilities.',
-          responseMimeType: 'application/json',
+          
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -183,13 +183,13 @@ Produce a structured JSON evaluation conforming to the requested schema.`;
         }
       }
     } catch (err: any) {
-      console.warn('[ProfileMatchAgent] Gemini API invocation failed:', err?.message || err);
+      console.warn('[ProfileMatchAgent] OpenRouter invocation failed:', err?.message || err);
       if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
-        throw new Error(`Analysis could not be completed: Gemini AI failed in Profile Match Agent (${err?.message || 'API error'}).`);
+        throw new Error(`Analysis could not be completed: OpenRouter AI failed in Profile Match Agent (${err?.message || 'API error'}).`);
       }
       const detMatch = generateDeterministicProfileMatch(studentProfile, opportunityAnalysis, eligibilityAnalysis);
       detMatch.aiFailed = true;
-      detMatch.aiFailureReason = err?.message || 'Gemini API call failed';
+      detMatch.aiFailureReason = err?.message || 'OpenRouter API call failed';
       return detMatch;
     }
   }
@@ -201,28 +201,75 @@ function sanitizeProfileMatch(
   raw: ProfileMatchResult,
   student: StudentProfile
 ): ProfileMatchResult {
+  const studentText = [
+    student.name,
+    student.currentDegree,
+    student.fieldOfStudy,
+    student.university,
+    ...(student.technicalSkills || []),
+    ...(student.programmingLanguages || []),
+    ...(student.aiMlSkills || []),
+    ...(student.otherSkills || []),
+    ...(student.internships || []).flatMap(i => [i.role, i.organization, i.duration, i.description]),
+    ...(student.projects || []).flatMap(p => [p.title, ...(p.techStack || []), p.description]),
+    ...(student.researchExperience || []).flatMap(r => [r.title, r.labOrMentor, r.description, r.publicationsOrOutcomes]),
+    ...(student.leadership || []).flatMap(l => [l.role, l.organization, l.description]),
+    ...(student.certificationsAwards || []).flatMap(a => [a.name, a.issuer, String(a.year || '')])
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  const claimIsGrounded = (claim: string): boolean => {
+    const normalized = String(claim || '').toLowerCase().trim();
+    if (!normalized) return false;
+    if (studentText.includes(normalized)) return true;
+
+    const tokens = normalized
+      .split(/[^a-z0-9+#.-]+/i)
+      .filter(t => t.length >= 4);
+
+    if (tokens.length === 0) return false;
+    const matched = tokens.filter(t => studentText.includes(t)).length;
+    return matched / tokens.length >= 0.6;
+  };
+
+  const groundedStrongMatches = (raw.strongMatches || []).filter(m =>
+    claimIsGrounded(m.studentEvidence)
+  );
+  const groundedExperience = (raw.relevantExperience || []).filter(e =>
+    claimIsGrounded(e.evidence || e.experience)
+  );
+  const groundedSkills = (raw.relevantSkills || []).filter(s =>
+    claimIsGrounded(s.skill)
+  );
+
+  const removedCount =
+    (raw.strongMatches || []).length - groundedStrongMatches.length +
+    (raw.relevantExperience || []).length - groundedExperience.length +
+    (raw.relevantSkills || []).length - groundedSkills.length;
+
   return {
-    strongMatches: raw.strongMatches.map(m => ({
+    strongMatches: groundedStrongMatches.map(m => ({
       area: m.area || 'Academic Fit',
-      studentEvidence: m.studentEvidence || `${student.currentDegree} in ${student.fieldOfStudy}`,
+      studentEvidence: m.studentEvidence,
       opportunityRelevance: m.opportunityRelevance || 'Program scope alignment',
       reasoning: m.reasoning || ''
     })),
-    relevantExperience: raw.relevantExperience.map(e => ({
+    relevantExperience: groundedExperience.map(e => ({
       experience: e.experience || 'Experience',
       relevance: e.relevance || 'Relevant background',
-      evidence: e.evidence || ''
+      evidence: e.evidence || e.experience
     })),
-    relevantSkills: raw.relevantSkills.map(s => ({
-      skill: s.skill || '',
+    relevantSkills: groundedSkills.map(s => ({
+      skill: s.skill,
       relevance: s.relevance || 'Direct competency'
     })),
-    gaps: raw.gaps.map(g => ({
+    gaps: (raw.gaps || []).map(g => ({
       area: g.area || 'Requirement Verification',
       reason: g.reason || '',
       severity: (['HIGH', 'MEDIUM', 'LOW'].includes(g.severity) ? g.severity : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW'
     })),
-    summary: raw.summary || `Profile alignment established across ${student.fieldOfStudy}, GPA (${student.gpa || 'N/A'}), and verified competencies.`
+    summary: removedCount > 0
+      ? `${raw.summary || 'Profile alignment evaluated.'} Unsupported profile claims were removed during evidence grounding.`
+      : (raw.summary || `Profile alignment evaluated from the submitted candidate profile.`)
   };
 }
 
