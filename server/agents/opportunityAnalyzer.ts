@@ -49,7 +49,9 @@ ${trimmed.slice(0, 25000)}
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           response = await aiClient.models.generateContent({
-            model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+            model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+              ? process.env.OPENROUTER_MODEL
+              : 'openai/gpt-oss-20b:free',
             contents: prompt,
             config: {
               systemInstruction: 'You are an objective academic document analysis agent. Extract only what is explicitly written in the source text and preserve exact evidence snippets for each requirement.',
@@ -160,6 +162,63 @@ ${trimmed.slice(0, 25000)}
           throw new Error('Could not parse structured JSON from Opportunity Analyzer.');
         }
       }
+
+      // Source-ground the extracted requirement arrays. An AI paraphrase is only
+      // accepted when the source contains a meaningful overlap OR a matching evidence snippet.
+      const sourceTextLower = trimmed.toLowerCase();
+      const sourceTokens = (value: string) =>
+        String(value || '')
+          .toLowerCase()
+          .split(/[^a-z0-9+#.-]+/)
+          .filter(t => t.length >= 4);
+
+      const isSourceGrounded = (value: string, category?: string): boolean => {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) return false;
+        if (sourceTextLower.includes(normalized)) return true;
+
+        const evidenceItems = Array.isArray(parsed.evidence) ? parsed.evidence : [];
+        const relatedEvidence = evidenceItems.filter((e: any) => {
+          const evCategory = String(e?.category || '').toLowerCase();
+          return !category || !evCategory || evCategory.includes(category);
+        });
+
+        const candidateTokens = sourceTokens(normalized);
+        const evidenceGrounded = relatedEvidence.some((e: any) => {
+          const snippet = String(e?.snippet || '').toLowerCase();
+          if (!snippet || !sourceTextLower.includes(snippet)) return false;
+          const evTokens = sourceTokens(snippet);
+          const matches = candidateTokens.filter(t => evTokens.includes(t)).length;
+          return candidateTokens.length === 0 || matches / candidateTokens.length >= 0.5;
+        });
+        if (evidenceGrounded) return true;
+
+        const matches = candidateTokens.filter(t => sourceTextLower.includes(t)).length;
+        return candidateTokens.length > 0 && matches / candidateTokens.length >= 0.65;
+      };
+
+      const groundedArray = (values: any, category?: string): string[] =>
+        Array.isArray(values)
+          ? values.map(v => String(v || '').trim()).filter(v => isSourceGrounded(v, category))
+          : [];
+
+      parsed.eligibleCountries = groundedArray(parsed.eligibleCountries, 'nation');
+      parsed.academicRequirements = groundedArray(parsed.academicRequirements, 'academic');
+      parsed.gpaRequirements = groundedArray(parsed.gpaRequirements, 'gpa');
+      parsed.degreeRequirements = groundedArray(parsed.degreeRequirements, 'degree');
+      parsed.yearRequirements = groundedArray(parsed.yearRequirements, 'year');
+      parsed.ageRequirements = groundedArray(parsed.ageRequirements, 'age');
+      parsed.requiredDocuments = groundedArray(parsed.requiredDocuments, 'doc');
+      parsed.languageRequirements = groundedArray(parsed.languageRequirements, 'language');
+      parsed.otherRequirements = groundedArray(parsed.otherRequirements, 'other');
+
+      // Keep only evidence snippets that actually occur in the supplied source.
+      parsed.evidence = Array.isArray(parsed.evidence)
+        ? parsed.evidence.filter((e: any) => {
+            const snippet = String(e?.snippet || '').trim();
+            return snippet.length >= 8 && sourceTextLower.includes(snippet.toLowerCase());
+          })
+        : [];
 
       // Extract minimum GPA value if not already numeric
       let extractedMinGpa: number | undefined = parsed.minimumGpa && parsed.minimumGpa > 0 ? parsed.minimumGpa : undefined;
