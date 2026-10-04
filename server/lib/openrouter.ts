@@ -77,7 +77,7 @@ export class OpenRouterAI {
       const model =
         params.model ||
         process.env.OPENROUTER_MODEL ||
-        'google/gemma-4-31b-it:free';
+        process.env.OPENROUTER_MODEL || 'openrouter/free';
 
       const response = await this.client.chat.completions.create({
         model,
