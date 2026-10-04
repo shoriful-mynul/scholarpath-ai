@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
+import { getOpenRouterClient } from './server/lib/openrouter';
 import * as pdfParseModule from 'pdf-parse';
 const pdfParse: any = (pdfParseModule as any).default || pdfParseModule;
 import { runScholarPathPipeline } from './server/agents/orchestrator';
@@ -9,6 +9,7 @@ import { SAMPLE_STUDENT_PROFILES, SAMPLE_OPPORTUNITIES, DEMO_PRECOMPUTED_ANALYSI
 import { StudentProfile } from './server/agents/types';
 
 dotenv.config();
+const openRouterClient = getOpenRouterClient();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -17,20 +18,11 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
-// Server-side Gemini Client
-let aiClient: GoogleGenAI | undefined = undefined;
-if (process.env.GEMINI_API_KEY) {
-  aiClient = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build'
-      }
-    }
-  });
-  console.log('[ScholarPath Server] Gemini AI initialized successfully.');
+// Server-side OpenRouter Client
+if (process.env.OPENROUTER_API_KEY) {
+  console.log('[ScholarPath Server] OpenRouter AI initialized successfully.');
 } else {
-  console.warn('[ScholarPath Server] GEMINI_API_KEY is not set. Operating in high-fidelity deterministic and sample evaluation mode.');
+  console.warn('[ScholarPath Server] OPENROUTER_API_KEY is not set. Operating in deterministic and sample evaluation mode.');
 }
 
 // 1. Health & Config endpoint
@@ -39,8 +31,8 @@ app.get('/api/health', (req, res) => {
     status: 'online',
     appName: 'ScholarPath AI',
     timestamp: new Date().toISOString(),
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    mode: process.env.GEMINI_API_KEY ? 'gemini_agentic' : 'deterministic_eval'
+    hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+    mode: process.env.OPENROUTER_API_KEY ? 'openrouter_agentic' : 'deterministic_eval'
   });
 });
 
@@ -151,7 +143,7 @@ app.post('/api/analyze', async (req, res) => {
     const analysisResult = await runScholarPathPipeline(
       rawOpportunityText,
       student,
-      aiClient,
+      openRouterClient,
       { allowFallback: Boolean(allowDeterministicFallback) }
     );
     return res.json(analysisResult);

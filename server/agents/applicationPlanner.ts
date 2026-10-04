@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -26,7 +26,7 @@ export async function runApplicationPlanner(
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
   profileMatch: ProfileMatchResult,
-  aiClient?: GoogleGenAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<ApplicationPlanResult> {
   const needsVerificationItems = eligibilityAnalysis.criteriaResults.filter(
@@ -35,7 +35,7 @@ export async function runApplicationPlanner(
 
   const isAmbiguousDeadline = checkAmbiguousDeadline(opportunityAnalysis.deadline);
 
-  if (aiClient && process.env.GEMINI_API_KEY) {
+  if (aiClient) {
     try {
       const prompt = `You are Stage 4: Application Planner Agent in ScholarPath AI.
 Generate an actionable, prioritized preparation plan tailored to the student and the opportunity.

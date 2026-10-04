@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -23,10 +23,10 @@ export async function runProfileMatchAgent(
   studentProfile: StudentProfile,
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
-  aiClient?: GoogleGenAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<ProfileMatchResult> {
-  if (aiClient && process.env.GEMINI_API_KEY) {
+  if (aiClient) {
     try {
       const prompt = `You are Stage 3: Profile Match Agent in ScholarPath AI.
 Analyze how this student candidate's factual background aligns with the extracted opportunity.

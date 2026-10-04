@@ -1,9 +1,9 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import { OpportunityAnalysis, ExtractedRequirement, OpportunityEvidenceItem } from './types';
 
 export async function runOpportunityAnalyzer(
   rawOpportunityText: string,
-  aiClient?: GoogleGenAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<OpportunityAnalysis> {
   const trimmed = rawOpportunityText.trim();
@@ -12,7 +12,7 @@ export async function runOpportunityAnalyzer(
   }
 
   // If Gemini client is provided and has API key, use Gemini 3.8 Flash with structured schema
-  if (aiClient && process.env.GEMINI_API_KEY) {
+  if (aiClient) {
     try {
       const prompt = `You are Agent 1 (Opportunity Analyzer) in ScholarPath AI.
 Your responsibility:

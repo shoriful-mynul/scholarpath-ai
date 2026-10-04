@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -22,7 +22,7 @@ export async function runVerificationAgent(
   eligibilityAnalysis: EligibilityAnalysis,
   profileMatch: ProfileMatchResult,
   applicationPlan: ApplicationPlanResult,
-  aiClient?: GoogleGenAI
+  aiClient?: OpenRouterAI
 ): Promise<VerificationResult> {
   // 1. Run deterministic code-level adversarial checks
   const programmaticFlags = runProgrammaticAdversarialChecks(
@@ -36,7 +36,7 @@ export async function runVerificationAgent(
   let aiFlags: VerificationFlag[] = [];
 
   // 2. If Gemini is available, run LLM adversarial cross-examination
-  if (aiClient && process.env.GEMINI_API_KEY) {
+  if (aiClient) {
     try {
       const prompt = `You are Stage 5: Verification Agent (Adversarial Integrity Auditor) in ScholarPath AI.
 Your sole job is to ACTIVELY SEARCH FOR MISTAKES and integrity issues across the previous agents' outputs.

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { OpenRouterAI } from '../lib/openrouter';
 import {
   StudentProfile,
   FullAnalysisResult,
@@ -30,7 +30,7 @@ import { runVerificationAgent } from './verificationAgent';
 export async function runScholarPathPipeline(
   rawOpportunityText: string,
   student: StudentProfile,
-  aiClient?: GoogleGenAI,
+  aiClient?: OpenRouterAI,
   options?: { allowFallback?: boolean }
 ): Promise<FullAnalysisResult> {
   const startTime = Date.now();
@@ -109,7 +109,7 @@ export async function runScholarPathPipeline(
     plan,
     studentName: student.name,
     opportunityName: opportunity.opportunityName,
-    isDemoFallback: !process.env.GEMINI_API_KEY || aiAnalysisFailed,
+    isDemoFallback: !aiClient || aiAnalysisFailed,
     aiAnalysisFailed,
     aiFailureReason
   };
