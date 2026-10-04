@@ -257,19 +257,34 @@ function sanitizeProfileMatch(
       area && !hasExactEvidence(g.reason);
   });
 
+  const safeStrongMatches = groundedStrongMatches.map(m => ({
+    ...m,
+    studentEvidence: extractEvidence(m.studentEvidence) || m.studentEvidence
+  }));
+  const safeExperience = groundedExperience.map(e => ({
+    ...e,
+    evidence: extractEvidence(e.evidence) || extractEvidence(e.experience) || e.evidence
+  }));
+
+  // Never trust a free-form LLM summary as factual profile evidence.
+  // Build the summary from already-grounded items so invented names, roles,
+  // universities, awards, or metrics cannot leak into the final report.
+  const summaryParts = [
+    safeStrongMatches.length ? `${safeStrongMatches.length} grounded profile alignment(s)` : '',
+    safeExperience.length ? `${safeExperience.length} relevant experience item(s)` : '',
+    groundedSkills.length ? `${groundedSkills.length} relevant skill(s)` : '',
+    gaps.length ? `${gaps.length} profile gap(s)` : ''
+  ].filter(Boolean);
+
   return {
     ...raw,
-    strongMatches: groundedStrongMatches.map(m => ({
-      ...m,
-      studentEvidence: extractEvidence(m.studentEvidence) || m.studentEvidence
-    })),
-    relevantExperience: groundedExperience.map(e => ({
-      ...e,
-      evidence: extractEvidence(e.evidence) || extractEvidence(e.experience) || e.evidence
-    })),
+    strongMatches: safeStrongMatches,
+    relevantExperience: safeExperience,
     relevantSkills: groundedSkills,
     gaps,
-    summary: raw.summary || 'Profile alignment was limited to evidence explicitly present in the submitted student profile.'
+    summary: summaryParts.length
+      ? `Profile match uses only facts explicitly present in the submitted student profile: ${summaryParts.join(', ')}.`
+      : 'No profile-match claims were retained because the submitted evidence could not be grounded to the student profile.'
   };
 }
 
