@@ -1,4 +1,4 @@
-import { OpenRouterAI, Type } from '../lib/openrouter';
+import { GeminiAI, Type } from '../lib/gemini';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -26,7 +26,7 @@ export async function runApplicationPlanner(
   opportunityAnalysis: OpportunityAnalysis,
   eligibilityAnalysis: EligibilityAnalysis,
   profileMatch: ProfileMatchResult,
-  aiClient?: OpenRouterAI,
+  aiClient?: GeminiAI,
   options?: { allowFallback?: boolean }
 ): Promise<ApplicationPlanResult> {
   const needsVerificationItems = eligibilityAnalysis.criteriaResults.filter(
@@ -72,9 +72,9 @@ Eligibility Summary:
 Produce a structured JSON plan conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
-          ? process.env.OPENROUTER_MODEL
-          : 'openai/gpt-oss-20b:free',
+        model: process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== 'gemini-3.5-flash'
+          ? process.env.GEMINI_MODEL
+          : 'gemini-3.5-flash',
         contents: prompt,
         config: {
           systemInstruction: 'You are an executive application planning strategist. Generate practical, concrete milestone timelines organized by urgency. Never assume missing documents exist.',
@@ -148,13 +148,13 @@ Produce a structured JSON plan conforming to the requested schema.`;
         return postProcessPlan(parsed, opportunityAnalysis, eligibilityAnalysis, studentProfile);
       }
     } catch (err: any) {
-      console.warn('[ApplicationPlanner] OpenRouter call failed:', err?.message || err);
+      console.warn('[ApplicationPlanner] Gemini call failed:', err?.message || err);
       if (!options?.allowFallback && !opportunityAnalysis.aiFailed) {
-        throw new Error(`Analysis could not be completed: OpenRouter AI failed in Application Planner Agent (${err?.message || 'API error'}).`);
+        throw new Error(`Analysis could not be completed: Gemini AI failed in Application Planner Agent (${err?.message || 'API error'}).`);
       }
       const detPlan = generateDeterministicPlan(studentProfile, opportunityAnalysis, eligibilityAnalysis, profileMatch, isAmbiguousDeadline);
       detPlan.aiFailed = true;
-      detPlan.aiFailureReason = err?.message || 'OpenRouter API call failed';
+      detPlan.aiFailureReason = err?.message || 'Gemini API call failed';
       return detPlan;
     }
   }
