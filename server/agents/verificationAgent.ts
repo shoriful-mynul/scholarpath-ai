@@ -1,4 +1,4 @@
-import { GeminiAI, Type } from '../lib/gemini';
+import { OpenRouterAI, Type } from '../lib/openrouter';
 import {
   StudentProfile,
   OpportunityAnalysis,
@@ -22,7 +22,7 @@ export async function runVerificationAgent(
   eligibilityAnalysis: EligibilityAnalysis,
   profileMatch: ProfileMatchResult,
   applicationPlan: ApplicationPlanResult,
-  aiClient?: GeminiAI
+  aiClient?: OpenRouterAI
 ): Promise<VerificationResult> {
   // 1. Run deterministic code-level adversarial checks
   const programmaticFlags = runProgrammaticAdversarialChecks(
@@ -35,7 +35,7 @@ export async function runVerificationAgent(
 
   let aiFlags: VerificationFlag[] = [];
 
-  // 2. If Gemini is available, run LLM adversarial cross-examination
+  // 2. If OpenRouter is available, run LLM adversarial cross-examination
   if (aiClient) {
     try {
       const prompt = `You are Stage 5: Verification Agent (Adversarial Integrity Auditor) in ScholarPath AI.
@@ -104,9 +104,9 @@ ${JSON.stringify({
 Identify any real flags. If the pipeline outputs are completely factual and verified, return an empty flags array.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== 'gemini-3.5-flash'
-          ? process.env.GEMINI_MODEL
-          : 'gemini-3.5-flash',
+        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are a rigorous adversarial auditor for an academic intelligence engine. Your goal is to catch hallucinations, unsupported claims, and contradictions.',
@@ -157,7 +157,7 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
         }
       }
     } catch (err) {
-      console.warn('[VerificationAgent] Gemini adversarial pass encountered error, relying on deterministic audit:', err);
+      console.warn('[VerificationAgent] OpenRouter adversarial pass encountered error, relying on deterministic audit:', err);
     }
   }
 
@@ -171,7 +171,7 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
     opportunityAnalysis.aiFailureReason ||
     profileMatch.aiFailureReason ||
     applicationPlan.aiFailureReason ||
-    'Upstream Gemini request failed or was unavailable';
+    'Upstream OpenRouter request failed or was unavailable';
 
   if (upstreamAiFailed) {
     aiFlags.unshift({
@@ -179,8 +179,8 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
       severity: 'HIGH',
       claimedBy: 'OPPORTUNITY_ANALYZER',
       claim: 'AI analysis completion',
-      explanation: `Upstream Gemini AI request failed, timed out, or returned an error: "${upstreamFailureReason}". Full AI-grounded multi-agent reasoning could not be completed.`,
-      correction: 'Rerun analysis with valid Gemini credentials or rely strictly on verified deterministic eligibility checks.'
+      explanation: `Upstream OpenRouter AI request failed, timed out, or returned an error: "${upstreamFailureReason}". Full AI-grounded multi-agent reasoning could not be completed.`,
+      correction: 'Rerun analysis with valid OpenRouter credentials or rely strictly on verified deterministic eligibility checks.'
     });
   }
 
@@ -215,7 +215,7 @@ Identify any real flags. If the pipeline outputs are completely factual and veri
   }
 
   const auditSummary = upstreamAiFailed
-    ? `Audit flagged critical failure: Upstream Gemini AI request failed (${upstreamFailureReason}). Full AI analysis could not be completed.`
+    ? `Audit flagged critical failure: Upstream OpenRouter AI request failed (${upstreamFailureReason}). Full AI analysis could not be completed.`
     : issuesFound
     ? `Adversarial audit identified ${mergedFlags.length} notice(s): ${mergedFlags.map(f => `[${f.category} (${f.severity})]: ${f.explanation}`).join(' ')}`
     : `All claims, requirements, and preparation tasks verified with 100% provenance against the student profile and source opportunity announcement.`;
