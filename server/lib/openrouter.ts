@@ -15,6 +15,12 @@ function convertSchema(schema: any): any {
     type: schema.type
   };
 
+  // OpenRouter/provider strict JSON Schema implementations expect object
+  // schemas to reject undeclared properties.
+  if (schema.type === Type.OBJECT) {
+    result.additionalProperties = false;
+  }
+
   if (schema.description) {
     result.description = schema.description;
   }
@@ -68,8 +74,16 @@ export class OpenRouterAI {
 
       const schema = params.config?.responseSchema;
 
+      const model =
+        params.model ||
+        process.env.OPENROUTER_MODEL ||
+        'openai/gpt-oss-20b:free';
+
       const response = await this.client.chat.completions.create({
-        model: 'openrouter/free',
+        model,
+        provider: {
+          require_parameters: Boolean(schema)
+        },
         messages: [
           {
             role: 'system',
@@ -94,9 +108,13 @@ export class OpenRouterAI {
             }
       });
 
-      return {
-        text: response.choices[0]?.message?.content || ''
-      };
+      const text = response.choices[0]?.message?.content || '';
+
+      if (!text.trim()) {
+        throw new Error('OpenRouter returned an empty response.');
+      }
+
+      return { text };
     }
   };
 }
