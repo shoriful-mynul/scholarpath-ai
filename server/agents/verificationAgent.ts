@@ -104,7 +104,7 @@ ${JSON.stringify({
 Identify any real flags. If the pipeline outputs are completely factual and verified, return an empty flags array.`;
 
       const response = await aiClient.models.generateContent({
-        model: 'google/gemma-4-31b-it:free',
+        model: process.env.OPENROUTER_MODEL || 'openrouter/free',
         contents: prompt,
         config: {
           systemInstruction: 'You are a rigorous adversarial auditor for an academic intelligence engine. Your goal is to catch hallucinations, unsupported claims, and contradictions.',
