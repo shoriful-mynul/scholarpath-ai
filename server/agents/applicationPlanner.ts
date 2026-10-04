@@ -72,7 +72,7 @@ Eligibility Summary:
 Produce a structured JSON plan conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: 'google/gemma-4-31b-it:free',
+        model: process.env.OPENROUTER_MODEL || 'openrouter/free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an executive application planning strategist. Generate practical, concrete milestone timelines organized by urgency. Never assume missing documents exist.',
