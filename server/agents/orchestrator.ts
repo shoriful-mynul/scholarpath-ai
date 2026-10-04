@@ -1,4 +1,4 @@
-import { OpenRouterAI } from '../lib/openrouter';
+import { GeminiAI } from '../lib/gemini';
 import {
   StudentProfile,
   FullAnalysisResult,
@@ -30,7 +30,7 @@ import { runVerificationAgent } from './verificationAgent';
 export async function runScholarPathPipeline(
   rawOpportunityText: string,
   student: StudentProfile,
-  aiClient?: OpenRouterAI,
+  aiClient?: GeminiAI,
   options?: { allowFallback?: boolean }
 ): Promise<FullAnalysisResult> {
   const startTime = Date.now();
