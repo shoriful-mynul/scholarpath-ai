@@ -104,7 +104,9 @@ ${JSON.stringify({
 Identify any real flags. If the pipeline outputs are completely factual and verified, return an empty flags array.`;
 
       const response = await aiClient.models.generateContent({
-        model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+        model: process.env.OPENROUTER_MODEL && process.env.OPENROUTER_MODEL !== 'openrouter/free'
+          ? process.env.OPENROUTER_MODEL
+          : 'openai/gpt-oss-20b:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are a rigorous adversarial auditor for an academic intelligence engine. Your goal is to catch hallucinations, unsupported claims, and contradictions.',
@@ -311,7 +313,7 @@ function runProgrammaticAdversarialChecks(
   // Check 2: Ambiguous Deadlines
   // If deadline is unclear or subjective ("rolling", "soon", "open", "tbd", "unspecified"), verify that Application Planner flagged it
   const dLower = (opportunity.deadline || '').toLowerCase();
-  const isAmbiguous = ['rolling', 'asap', 'soon', 'tbd', 'open until', 'unspecified', 'ongoing'].some(kw => dLower.includes(kw));
+  const isAmbiguous = ['rolling', 'asap', 'soon', 'tbd', 'open until', 'unspecified', 'not specified', 'deadline not explicitly stated', 'unverified', 'ongoing'].some(kw => dLower.includes(kw));
 
   if (isAmbiguous) {
     const notesLower = (plan.deadlineNotes || '').toLowerCase();
