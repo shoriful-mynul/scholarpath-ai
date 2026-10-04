@@ -4,7 +4,7 @@ export interface HealthResponse {
   status: string;
   appName: string;
   timestamp: string;
-  hasGeminiKey: boolean;
+  hasOpenRouterKey: boolean;
   mode: string;
 }
 
