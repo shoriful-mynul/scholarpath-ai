@@ -110,7 +110,7 @@ ${JSON.stringify({
 Produce a structured JSON evaluation conforming to the requested schema.`;
 
       const response = await aiClient.models.generateContent({
-        model: 'openai/gpt-oss-20b:free',
+        model: 'google/gemma-4-31b-it:free',
         contents: prompt,
         config: {
           systemInstruction: 'You are an objective fellowship and scholarship admissions advisor. You evaluate applicant background alignment with academic integrity and rigorous evidence grounding. Never invent claims or compute acceptance probabilities.',
