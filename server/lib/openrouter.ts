@@ -78,18 +78,20 @@ export class OpenRouterAI {
 
       const schema = params.config?.responseSchema;
 
+      // Always send a concrete model ID. A malformed/blank Render environment
+      // variable must never result in an empty model field.
+      const configuredModel = String(process.env.OPENROUTER_MODEL || '').trim();
+      const requestedModel = String(params.model || '').trim();
+
       const model =
-        params.model ||
-        process.env.OPENROUTER_MODEL &&
-        process.env.OPENROUTER_MODEL !== 'openrouter/free'
-          ? process.env.OPENROUTER_MODEL
-          : 'openai/gpt-oss-20b:free';
+        requestedModel && requestedModel !== 'openrouter/free'
+          ? requestedModel
+          : configuredModel && configuredModel !== 'openrouter/free'
+            ? configuredModel
+            : 'openai/gpt-oss-20b:free';
 
       const response = await this.client.chat.completions.create({
         model,
-        provider: {
-          require_parameters: Boolean(schema)
-        },
         messages: [
           {
             role: 'system',
