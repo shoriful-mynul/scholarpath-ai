@@ -134,9 +134,9 @@ The application runs on `http://localhost:3000`.
 Create a `.env` file in the project root:
 
 ```env
-# GEMINI_API_KEY: Required for live OpenRouter-hosted AI models multi-agent reasoning.
+# OPENROUTER_API_KEY: Required for live OpenRouter-hosted AI models multi-agent reasoning.
 # In Google AI Studio, this is injected automatically from the Secrets panel.
-GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+OPENROUTER_API_KEY="YOUR_OPENROUTER_API_KEY"
 
 # Optional port (defaults to 3000)
 PORT=3000
