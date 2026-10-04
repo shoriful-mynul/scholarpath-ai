@@ -378,89 +378,89 @@ export function runEligibilityAnalyzer(
   }
 
   // 5. GRADUATION YEAR & CONTINUATION TIMELINE
-  const currentYear = new Date().getFullYear();
-  const gradEvidence = opportunity.evidence.find(e => 
-    e.requirement.toLowerCase().includes('year') || 
-    e.requirement.toLowerCase().includes('graduat') ||
-    e.requirement.toLowerCase().includes('cohort')
-  )?.snippet || 'Enrollment continuity condition through award period.';
+  // Do not infer an enrollment requirement merely because the candidate has a graduation year.
+  // Only evaluate this criterion when the opportunity explicitly states a year/cohort/enrollment rule.
+  if ((opportunity.yearRequirements || []).length > 0) {
+    const currentYear = new Date().getFullYear();
+    const gradEvidence = opportunity.evidence.find(e =>
+      e.requirement.toLowerCase().includes('year') ||
+      e.requirement.toLowerCase().includes('graduat') ||
+      e.requirement.toLowerCase().includes('cohort') ||
+      e.category?.toLowerCase().includes('year')
+    )?.snippet || 'Enrollment/year requirement extracted from the opportunity source.';
 
-  if (!student.expectedGraduationYear) {
-    pushCriterion({
-      id: 'crit_graduation',
-      category: 'year_semester',
-      requirement: 'Enrollment continuity and graduation year verification',
-      studentInformation: 'Graduation year missing from profile',
-      status: 'NEEDS_VERIFICATION',
-      evidence: gradEvidence,
-      explanation: 'Some eligibility requirements cannot be verified because your profile is missing graduation year.',
-      isDeterministic: true
-    });
-  } else if (oppTextCombined.includes('graduating seniors') && oppTextCombined.includes('not eligible')) {
-    if (student.expectedGraduationYear <= currentYear) {
-      hardBlockers.push('Ineligible graduation cohort (graduating seniors excluded from program)');
+    if (!student.expectedGraduationYear) {
       pushCriterion({
         id: 'crit_graduation',
         category: 'year_semester',
-        requirement: 'Must be continuing undergraduate (graduating seniors ineligible)',
-        studentInformation: `Expected Graduation: ${student.expectedGraduationYear}`,
-        status: 'NOT_MET',
+        requirement: 'Enrollment continuity and graduation year verification',
+        studentInformation: 'Graduation year missing from profile',
+        status: 'NEEDS_VERIFICATION',
         evidence: gradEvidence,
-        explanation: `Deterministic check failed: Opportunity excludes graduating seniors, and student graduation year is ${student.expectedGraduationYear}.`,
+        explanation: 'The opportunity contains an explicit year/cohort condition, but the student profile is missing graduation-year information.',
         isDeterministic: true
       });
+    } else if (oppTextCombined.includes('graduating seniors') && oppTextCombined.includes('not eligible')) {
+      if (student.expectedGraduationYear <= currentYear) {
+        hardBlockers.push('Ineligible graduation cohort (graduating seniors excluded from program)');
+        pushCriterion({
+          id: 'crit_graduation',
+          category: 'year_semester',
+          requirement: 'Must be continuing undergraduate (graduating seniors ineligible)',
+          studentInformation: `Expected Graduation: ${student.expectedGraduationYear}`,
+          status: 'NOT_MET',
+          evidence: gradEvidence,
+          explanation: `Deterministic check failed: Opportunity excludes graduating seniors, and student graduation year is ${student.expectedGraduationYear}.`,
+          isDeterministic: true
+        });
+      } else {
+        pushCriterion({
+          id: 'crit_graduation',
+          category: 'year_semester',
+          requirement: 'Must be continuing undergraduate student (non-graduating senior)',
+          studentInformation: `Expected Graduation: ${student.expectedGraduationYear} (${student.currentYearOrSemester || 'Continuing'})`,
+          status: 'NEEDS_VERIFICATION',
+          evidence: gradEvidence,
+          explanation: 'Expected graduation suggests continued study, but active enrollment should be confirmed against the opportunity start period.',
+          isDeterministic: false
+        });
+      }
     } else {
       pushCriterion({
         id: 'crit_graduation',
         category: 'year_semester',
-        requirement: 'Must be continuing undergraduate student (non-graduating senior)',
-        studentInformation: `Expected Graduation: ${student.expectedGraduationYear} (${student.currentYearOrSemester || 'Continuing'})`,
-        status: 'MET',
+        requirement: 'Enrollment/year eligibility requirement',
+        studentInformation: `Expected Graduation: ${student.expectedGraduationYear}`,
+        status: 'NEEDS_VERIFICATION',
         evidence: gradEvidence,
-        explanation: `Deterministic check passed: Student expected graduation is ${student.expectedGraduationYear}, satisfying the continuing undergraduate requirement.`,
-        isDeterministic: true
+        explanation: 'Expected graduation suggests continued study, but the opportunity-specific enrollment/year condition requires verification against the programme dates.',
+        isDeterministic: false
       });
     }
-  } else {
-    pushCriterion({
-      id: 'crit_graduation',
-      category: 'year_semester',
-      requirement: 'Maintain active student enrollment during award period',
-      studentInformation: `Expected Graduation: ${student.expectedGraduationYear}`,
-      status: 'MET',
-      evidence: gradEvidence,
-      explanation: `Student graduation year (${student.expectedGraduationYear}) maintains active enrollment eligibility.`,
-      isDeterministic: true
-    });
   }
 
   // 6. REQUIRED APPLICATION DOSSIER
-  const docsList = opportunity.requiredDocuments.length > 0
-    ? opportunity.requiredDocuments.join(', ')
-    : 'Not explicitly specified in the opportunity source text';
-  
-  const docEvidence = opportunity.evidence.find(e => 
-    e.requirement.toLowerCase().includes('document') || 
-    e.requirement.toLowerCase().includes('transcript') ||
-    e.category?.toLowerCase() === 'documents'
-  )?.snippet || 'Submission of required application dossier.';
+  // Never invent common documents when the opportunity source did not specify any.
+  if ((opportunity.requiredDocuments || []).length > 0) {
+    const docsList = opportunity.requiredDocuments.join(', ');
+    const docEvidence = opportunity.evidence.find(e =>
+      e.requirement.toLowerCase().includes('document') ||
+      e.requirement.toLowerCase().includes('transcript') ||
+      e.category?.toLowerCase() === 'documents' ||
+      e.category?.toLowerCase() === 'document'
+    )?.snippet || 'Required application documents extracted from the opportunity source.';
 
-  pushCriterion({
-    id: 'crit_documents',
-    category: 'documents',
-    requirement: opportunity.requiredDocuments.length > 0
-      ? `Submission of Required Documents: ${docsList}`
-      : 'Application document requirements are not explicitly specified in the provided opportunity text',
-    studentInformation: opportunity.requiredDocuments.length > 0
-      ? 'Document readiness cannot be confirmed from the submitted profile.'
-      : 'No explicit document requirements were extracted from the provided opportunity text.',
-    status: 'NEEDS_VERIFICATION',
-    evidence: docEvidence,
-    explanation: opportunity.requiredDocuments.length > 0
-      ? 'Required documents were explicitly extracted from the opportunity source, but candidate readiness must be verified separately.'
-      : 'The provided opportunity text does not explicitly specify application documents. Verify the official application instructions before assuming any document is required.',
-    isDeterministic: false
-  });
+    pushCriterion({
+      id: 'crit_documents',
+      category: 'documents',
+      requirement: `Submission of Required Documents: ${docsList}`,
+      studentInformation: 'Document readiness cannot be confirmed from the submitted profile.',
+      status: 'NEEDS_VERIFICATION',
+      evidence: docEvidence,
+      explanation: 'These documents were explicitly extracted from the opportunity source, but candidate readiness must be verified separately.',
+      isDeterministic: false
+    });
+  }
 
   // Calculate statistics
   const metCount = criteriaResults.filter(c => c.status === 'MET').length;
