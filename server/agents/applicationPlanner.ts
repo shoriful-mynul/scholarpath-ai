@@ -427,6 +427,15 @@ function generateDeterministicPlan(
     ? `UNVERIFIED: requires source confirmation. The extracted deadline "${deadline}" is missing, rolling, ongoing, or ambiguous.`
     : `Official submission deadline extracted from the opportunity: ${deadline}.`;
 
+  // Build the document checklist from Agent 1's source-grounded requirements.
+  // This is deliberately deterministic so the fallback path never references
+  // an undefined variable and never invents documents.
+  const documents: ApplicationPlanDocument[] = reqDocs.map(document => ({
+    document,
+    status: 'NEEDS_PREPARATION',
+    reason: 'Explicitly required by the opportunity source; prepare/verify before submission.'
+  }));
+
   return {
     priorityTasks,
     documents,
