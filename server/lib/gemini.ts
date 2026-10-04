@@ -10,7 +10,7 @@ export class GeminiAI {
 
   constructor(apiKey: string, model?: string) {
     this.client = new GoogleGenAI({ apiKey });
-    this.model = model || process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+    this.model = model || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   }
 
   models = {
@@ -22,7 +22,6 @@ export class GeminiAI {
       const model = requested.startsWith('gemini-') ? requested : this.model;
       const config: any = {
         systemInstruction,
-        temperature: 0.1,
         responseMimeType: schema ? 'application/json' : 'text/plain'
       };
       if (schema) config.responseSchema = schema;
@@ -48,5 +47,5 @@ export class GeminiAI {
 export function getGeminiClient(): GeminiAI | undefined {
   const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey) return undefined;
-  return new GeminiAI(apiKey, process.env.GEMINI_MODEL || 'gemini-3.5-flash');
+  return new GeminiAI(apiKey, process.env.GEMINI_MODEL || 'gemini-3.8-flash');
 }
